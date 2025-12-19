@@ -164,9 +164,8 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 "address_count": str(len(self._addresses)),
             },
         )
-
-    @callback
-    def _create_entry(self) -> FlowResult:
+    
+    async def _create_entry(self) -> FlowResult:
         """Create the config entry."""
         if not self._addresses:
             # Should not happen, but fallback to address step
@@ -174,7 +173,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Create unique ID from first address COTE_RUE_ID
         unique_id = f"montreal_snow_removal_{self._addresses[0][CONF_COTE_RUE_ID]}"
-        await self.async_set_unique_id(unique_id)
+        self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
 
         return self.async_create_entry(

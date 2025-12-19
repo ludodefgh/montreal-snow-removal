@@ -1,0 +1,52 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Montréal Snow Removal Setup",
+        "description": "Enter your Planif-Neige API token to begin. You can request a token from donneesouvertes@montreal.ca",
+        "data": {
+          "api_token": "API Token",
+          "use_production": "Use Production API (uncheck for testing)"
+        }
+      },
+      "address": {
+        "title": "Add Address",
+        "description": "Add an address to track. Currently tracking {address_count} address(es).",
+        "data": {
+          "name": "Name (e.g., Home, Work)",
+          "address": "Full Address (optional, for reference only)",
+          "cote_rue_id": "COTE_RUE_ID (Street Side ID)"
+        }
+      },
+      "add_another": {
+        "title": "Add Another Address?",
+        "description": "You have configured {address_count} address(es). Would you like to add another?",
+        "data": {
+          "add_another": "Add another address"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid API token. Please check your token and try again.",
+      "unknown": "An unexpected error occurred. Please try again.",
+      "name_required": "Name is required",
+      "cote_rue_id_required": "COTE_RUE_ID is required",
+      "invalid_cote_rue_id": "COTE_RUE_ID must be a number"
+    },
+    "abort": {
+      "already_configured": "This integration is already configured",
+      "no_addresses": "At least one address must be configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Montreal Snow Removal Options",
+        "description": "Configure polling interval",
+        "data": {
+          "scan_interval": "Update interval (seconds, minimum 300)"
+        }
+      }
+    }
+  }
+}

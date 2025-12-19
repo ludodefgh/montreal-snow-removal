@@ -1,0 +1,12 @@
+{
+  "domain": "montreal_snow_removal",
+  "name": "Montréal Snow Removal (Planif-Neige)",
+  "codeowners": ["@ludovic"],
+  "config_flow": true,
+  "dependencies": [],
+  "documentation": "https://github.com/ludovic/montreal-snow-removal",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/ludovic/montreal-snow-removal/issues",
+  "requirements": ["zeep>=4.2.1", "aiohttp>=3.8.0"],
+  "version": "1.0.0"
+}

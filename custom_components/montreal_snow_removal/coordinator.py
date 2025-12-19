@@ -1,0 +1,237 @@
+"""DataUpdateCoordinator for Montreal Snow Removal integration."""
+from __future__ import annotations
+
+from datetime import datetime, timedelta
+import logging
+from typing import Any
+
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.update_coordinator import (
+    DataUpdateCoordinator,
+    UpdateFailed,
+)
+
+from .api.planif_neige import (
+    PlanifNeigeAPIError,
+    PlanifNeigeAuthError,
+    PlanifNeigeClient,
+    PlanifNeigeRateLimitError,
+)
+from .api.geobase import GeobaseHandler
+from .const import (
+    DOMAIN,
+    MIN_SCAN_INTERVAL,
+    STATE_MAP,
+)
+
+_LOGGER = logging.getLogger(__name__)
+
+
+class SnowRemovalCoordinator(DataUpdateCoordinator):
+    """Coordinator to manage snow removal data updates."""
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        api_client: PlanifNeigeClient,
+        geobase: GeobaseHandler,
+        update_interval: int,
+        tracked_cote_rue_ids: list[int],
+    ) -> None:
+        """Initialize the coordinator.
+
+        Args:
+            hass: Home Assistant instance
+            api_client: Planif-Neige API client
+            geobase: Geobase handler for street name mapping
+            update_interval: Update interval in seconds (min 300)
+            tracked_cote_rue_ids: List of COTE_RUE_ID to track
+        """
+        super().__init__(
+            hass,
+            _LOGGER,
+            name=DOMAIN,
+            update_interval=timedelta(
+                seconds=max(update_interval, MIN_SCAN_INTERVAL)
+            ),
+        )
+
+        self.api_client = api_client
+        self.geobase = geobase
+        self.tracked_cote_rue_ids = set(tracked_cote_rue_ids)
+        self.last_update_time: datetime | None = None
+
+        # Store current state for each tracked street
+        self._street_data: dict[int, dict[str, Any]] = {}
+
+        _LOGGER.debug(
+            "Initialized coordinator for %d streets", len(self.tracked_cote_rue_ids)
+        )
+
+    async def _async_update_data(self) -> dict[int, dict[str, Any]]:
+        """Fetch data from API.
+
+        Returns:
+            Dictionary mapping COTE_RUE_ID to street data
+
+        Raises:
+            UpdateFailed: When update fails
+        """
+        try:
+            # Determine from_date for API call
+            # First time: get data from last 30 days
+            # Subsequent: get data since last update
+            if self.last_update_time is None:
+                from_date = datetime.now() - timedelta(days=30)
+                _LOGGER.debug("First update, fetching last 30 days")
+            else:
+                from_date = self.last_update_time
+                _LOGGER.debug("Fetching updates since %s", from_date)
+
+            # Call API
+            response = await self.api_client.async_get_planifications(from_date)
+
+            # Update last update time
+            self.last_update_time = datetime.now()
+
+            # Process planifications
+            planifications = response.get("planifications", [])
+            _LOGGER.debug("Received %d planifications", len(planifications))
+
+            # Update street data with new planifications
+            for planif in planifications:
+                cote_rue_id = planif.get("cote_rue_id")
+
+                # Only process tracked streets
+                if cote_rue_id not in self.tracked_cote_rue_ids:
+                    continue
+
+                # Get street info from geobase
+                street_info = self.geobase.get_street_info(cote_rue_id)
+
+                # Map state
+                etat_code = planif.get("etat_deneig", 0)
+                state = STATE_MAP.get(etat_code, "unknown")
+
+                # Build street data
+                street_data = {
+                    "cote_rue_id": cote_rue_id,
+                    "state": state,
+                    "etat_code": etat_code,
+                    "date_deb_planif": planif.get("date_deb_planif"),
+                    "date_fin_planif": planif.get("date_fin_planif"),
+                    "date_deb_replanif": planif.get("date_deb_replanif"),
+                    "date_fin_replanif": planif.get("date_fin_replanif"),
+                    "date_maj": planif.get("date_maj"),
+                }
+
+                # Add street info if available
+                if street_info:
+                    street_data.update({
+                        "nom_voie": street_info.get("nom_voie"),
+                        "type_voie": street_info.get("type_voie"),
+                        "debut_adresse": street_info.get("debut_adresse"),
+                        "fin_adresse": street_info.get("fin_adresse"),
+                        "cote": street_info.get("cote"),
+                        "nom_ville": street_info.get("nom_ville"),
+                    })
+
+                # Calculate hours before start (if planned)
+                if planif.get("date_deb_planif"):
+                    hours_before = self._calculate_hours_before(
+                        planif["date_deb_planif"]
+                    )
+                    street_data["heures_avant_debut"] = hours_before
+                elif planif.get("date_deb_replanif"):
+                    hours_before = self._calculate_hours_before(
+                        planif["date_deb_replanif"]
+                    )
+                    street_data["heures_avant_debut"] = hours_before
+                else:
+                    street_data["heures_avant_debut"] = None
+
+                # Update stored data
+                self._street_data[cote_rue_id] = street_data
+
+                _LOGGER.debug(
+                    "Updated COTE_RUE_ID %d: state=%s",
+                    cote_rue_id,
+                    state,
+                )
+
+            # Return current state for all tracked streets
+            return self._street_data
+
+        except PlanifNeigeAuthError as err:
+            _LOGGER.error("Authentication error: %s", err)
+            raise UpdateFailed(f"Authentication failed: {err}") from err
+
+        except PlanifNeigeRateLimitError as err:
+            _LOGGER.warning("Rate limit exceeded: %s", err)
+            # Don't fail, just return current data
+            return self._street_data
+
+        except PlanifNeigeAPIError as err:
+            _LOGGER.error("API error: %s", err)
+            raise UpdateFailed(f"API error: {err}") from err
+
+        except Exception as err:
+            _LOGGER.exception("Unexpected error during update: %s", err)
+            raise UpdateFailed(f"Unexpected error: {err}") from err
+
+    def _calculate_hours_before(self, target_date: datetime) -> float | None:
+        """Calculate hours before a target date.
+
+        Args:
+            target_date: Target datetime
+
+        Returns:
+            Hours before target date, or None if target is in the past
+        """
+        if not target_date:
+            return None
+
+        now = datetime.now()
+
+        # If target_date is naive, assume same timezone as now
+        if target_date.tzinfo is None and now.tzinfo is not None:
+            target_date = target_date.replace(tzinfo=now.tzinfo)
+        elif target_date.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=target_date.tzinfo)
+
+        delta = target_date - now
+        hours = delta.total_seconds() / 3600
+
+        return hours if hours > 0 else None
+
+    def get_street_data(self, cote_rue_id: int) -> dict[str, Any] | None:
+        """Get current data for a specific street.
+
+        Args:
+            cote_rue_id: Street side ID
+
+        Returns:
+            Street data dictionary or None
+        """
+        return self._street_data.get(cote_rue_id)
+
+    def add_tracked_street(self, cote_rue_id: int) -> None:
+        """Add a street to track.
+
+        Args:
+            cote_rue_id: Street side ID to add
+        """
+        if cote_rue_id not in self.tracked_cote_rue_ids:
+            self.tracked_cote_rue_ids.add(cote_rue_id)
+            _LOGGER.debug("Added COTE_RUE_ID %d to tracking", cote_rue_id)
+
+    def remove_tracked_street(self, cote_rue_id: int) -> None:
+        """Remove a street from tracking.
+
+        Args:
+            cote_rue_id: Street side ID to remove
+        """
+        if cote_rue_id in self.tracked_cote_rue_ids:
+            self.tracked_cote_rue_ids.discard(cote_rue_id)
+            self._street_data.pop(cote_rue_id, None)
+            _LOGGER.debug("Removed COTE_RUE_ID %d from tracking", cote_rue_id)

@@ -1,0 +1,72 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Configuration Déneigement Montréal",
+        "description": "Entrez votre jeton API Planif-Neige pour commencer. Vous pouvez demander un jeton à donneesouvertes@montreal.ca",
+        "data": {
+          "api_token": "Jeton API",
+          "use_production": "Utiliser l'API de production (décocher pour test)"
+        }
+      },
+      "address": {
+        "title": "Ajouter une adresse",
+        "description": "Ajoutez une adresse à suivre. Vous suivez actuellement {address_count} adresse(s).",
+        "data": {
+          "name": "Nom (ex: Maison, Travail)",
+          "address": "Adresse complète (optionnel, pour référence seulement)",
+          "cote_rue_id": "COTE_RUE_ID (Identifiant du côté de rue)"
+        }
+      },
+      "add_another": {
+        "title": "Ajouter une autre adresse ?",
+        "description": "Vous avez configuré {address_count} adresse(s). Voulez-vous en ajouter une autre ?",
+        "data": {
+          "add_another": "Ajouter une autre adresse"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Jeton API invalide. Veuillez vérifier votre jeton et réessayer.",
+      "unknown": "Une erreur inattendue s'est produite. Veuillez réessayer.",
+      "name_required": "Le nom est requis",
+      "cote_rue_id_required": "Le COTE_RUE_ID est requis",
+      "invalid_cote_rue_id": "Le COTE_RUE_ID doit être un nombre"
+    },
+    "abort": {
+      "already_configured": "Cette intégration est déjà configurée",
+      "no_addresses": "Au moins une adresse doit être configurée"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Déneigement Montréal",
+        "description": "Configurer l'intervalle de mise à jour",
+        "data": {
+          "scan_interval": "Intervalle de mise à jour (secondes, minimum 300)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "snow_removal": {
+        "state": {
+          "enneige": "Enneigé",
+          "deneige": "Déneigé",
+          "planifie": "Planifié",
+          "replanifie": "Replanifié",
+          "sera_replanifie": "Sera replanifié",
+          "en_cours": "En cours",
+          "degage": "Dégagé"
+        }
+      }
+    },
+    "binary_sensor": {
+      "parking_ban": {
+        "name": "Interdiction de stationnement"
+      }
+    }
+  }
+}

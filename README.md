@@ -22,7 +22,7 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 2. Click on "Integrations"
 3. Click the three dots in the top right corner
 4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/ludovic/montreal-snow-removal`
+5. Add this repository URL: `https://github.com/ludodefgh/montreal-snow-removal`
 6. Select category: "Integration"
 7. Click "Add"
 8. Find "Montréal Snow Removal" in HACS and click "Install"

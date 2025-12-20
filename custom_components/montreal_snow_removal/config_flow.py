@@ -155,7 +155,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_address()
 
             # Create the entry
-            return self._create_entry()
+            return await self._create_entry()
 
         data_schema = vol.Schema(
             {
@@ -171,7 +171,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
     
-    def _create_entry(self) -> FlowResult:
+    async def _create_entry(self) -> FlowResult:
         """Create the config entry."""
         if not self._addresses:
             # Should not happen, but fallback to address step
@@ -179,7 +179,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Create unique ID from first address COTE_RUE_ID
         unique_id = f"montreal_snow_removal_{self._addresses[0][CONF_COTE_RUE_ID]}"
-        self.async_set_unique_id(unique_id)
+        await self.async_set_unique_id(unique_id)
         self._abort_if_unique_id_configured()
 
         return self.async_create_entry(

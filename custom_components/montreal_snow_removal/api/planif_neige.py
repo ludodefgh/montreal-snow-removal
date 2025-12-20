@@ -9,6 +9,7 @@ from typing import Any
 from zeep import Client
 from zeep.exceptions import Fault
 from zeep.transports import Transport
+from zeep.plugins import Plugin
 from requests import Session
 
 from ..const import (
@@ -24,6 +25,35 @@ from ..const import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+
+class CustomTransport(Transport):
+    """Custom Zeep Transport that forces User-Agent on all HTTP requests."""
+
+    def __init__(self, user_agent: str, **kwargs):
+        """Initialize with User-Agent header."""
+        super().__init__(**kwargs)
+        self.user_agent = user_agent
+
+    def _load_remote_data(self, url):
+        """Override to add User-Agent header to GET requests."""
+        # Add User-Agent to session headers before loading
+        if self.session:
+            self.session.headers['User-Agent'] = self.user_agent
+        return super()._load_remote_data(url)
+
+
+class UserAgentPlugin(Plugin):
+    """Zeep plugin to ensure User-Agent header is sent on SOAP requests."""
+
+    def __init__(self, user_agent: str):
+        """Initialize plugin with User-Agent string."""
+        self.user_agent = user_agent
+
+    def egress(self, envelope, http_headers, operation, binding_options):
+        """Add User-Agent to outgoing HTTP headers."""
+        http_headers["User-Agent"] = self.user_agent
+        return envelope, http_headers
 
 
 class PlanifNeigeAPIError(Exception):
@@ -91,8 +121,22 @@ class PlanifNeigeClient:
         try:
             self._session = Session()
             self._session.verify = True
-            self._transport = Transport(session=self._session, timeout=30)
-            self.client = Client(wsdl=self.wsdl_url, transport=self._transport)
+
+            # Add browser User-Agent to avoid bot detection/blocking by Cloudflare
+            user_agent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            self._session.headers.update({'User-Agent': user_agent})
+
+            # Use custom transport that forces User-Agent on all HTTP requests (WSDL, XSD, SOAP)
+            self._transport = CustomTransport(user_agent=user_agent, session=self._session, timeout=30)
+
+            # Create plugin to ensure User-Agent is sent on SOAP requests
+            user_agent_plugin = UserAgentPlugin(user_agent)
+
+            self.client = Client(
+                wsdl=self.wsdl_url,
+                transport=self._transport,
+                plugins=[user_agent_plugin]
+            )
         except Exception as err:
             _LOGGER.error("Failed to initialize SOAP client: %s", err)
             raise PlanifNeigeAPIError(f"Cannot connect to API server: {err}") from err
@@ -146,9 +190,12 @@ class PlanifNeigeClient:
         Returns:
             Raw SOAP response
         """
+        # SOAP expects nested object structure
         return self.client.service.GetPlanificationsForDate(
-            fromDate=from_date_str,
-            tokenString=self.api_token,
+            getPlanificationsForDate={
+                'fromDate': from_date_str,
+                'tokenString': self.api_token,
+            }
         )
 
     def _parse_response(self, response: Any) -> dict[str, Any]:
@@ -167,7 +214,7 @@ class PlanifNeigeClient:
         """
         try:
             # Extract return code
-            return_code = getattr(response, "codeRetour", None)
+            return_code = getattr(response, "responseStatus", None)
 
             if return_code is None:
                 raise PlanifNeigeAPIError("Missing return code in response")
@@ -197,17 +244,21 @@ class PlanifNeigeClient:
             if return_code != API_ERROR_OK:
                 raise PlanifNeigeAPIError(f"Unknown error code: {return_code}")
 
-            # Extract planifications
+            # Extract planifications wrapper object
+            planif_wrapper = getattr(response, "planifications", None)
+
             planifications = []
-            planif_list = getattr(response, "listePlanifications", None)
+            if planif_wrapper:
+                # The actual planifications are in the 'planification' attribute (without 's')
+                planif_list = getattr(planif_wrapper, "planification", None)
 
-            if planif_list:
-                # Handle both single item and list
-                if not isinstance(planif_list, list):
-                    planif_list = [planif_list]
+                if planif_list:
+                    # Handle both single item and list
+                    if not isinstance(planif_list, list):
+                        planif_list = [planif_list]
 
-                for planif in planif_list:
-                    planifications.append(self._parse_planification(planif))
+                    for planif in planif_list:
+                        planifications.append(self._parse_planification(planif))
 
             _LOGGER.debug("Parsed %d planifications", len(planifications))
 

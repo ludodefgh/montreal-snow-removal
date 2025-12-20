@@ -55,15 +55,47 @@ class PlanifNeigeClient:
         base_url = API_URL_PROD if use_production else API_URL_TEST
         self.wsdl_url = f"{base_url}{API_WSDL_SUFFIX}"
 
-        # Initialize SOAP client
-        session = Session()
-        session.verify = True
-        transport = Transport(session=session, timeout=30)
-        self.client = Client(wsdl=self.wsdl_url, transport=transport)
+        # SOAP client will be initialized lazily
+        self.client = None
+        self._session = None
+        self._transport = None
 
         _LOGGER.debug(
             "Initialized PlanifNeigeClient (production=%s)", use_production
         )
+
+    async def _ensure_client(self) -> None:
+        """Ensure SOAP client is initialized (lazy initialization in executor).
+
+        This must be called before any API operations.
+        """
+        if self.client is not None:
+            return
+
+        _LOGGER.debug("Initializing SOAP client for %s", self.wsdl_url)
+
+        # Initialize SOAP client in executor to avoid blocking
+        await asyncio.get_event_loop().run_in_executor(
+            None,
+            self._init_soap_client,
+        )
+
+        _LOGGER.debug("SOAP client initialized successfully")
+
+    def _init_soap_client(self) -> None:
+        """Initialize SOAP client (runs in executor).
+
+        Raises:
+            PlanifNeigeAPIError: If WSDL cannot be loaded
+        """
+        try:
+            self._session = Session()
+            self._session.verify = True
+            self._transport = Transport(session=self._session, timeout=30)
+            self.client = Client(wsdl=self.wsdl_url, transport=self._transport)
+        except Exception as err:
+            _LOGGER.error("Failed to initialize SOAP client: %s", err)
+            raise PlanifNeigeAPIError(f"Cannot connect to API server: {err}") from err
 
     async def async_get_planifications(
         self, from_date: datetime
@@ -81,6 +113,9 @@ class PlanifNeigeClient:
             PlanifNeigeRateLimitError: Rate limit exceeded
             PlanifNeigeAPIError: Other API errors
         """
+        # Ensure SOAP client is initialized
+        await self._ensure_client()
+
         from_date_str = from_date.strftime("%Y-%m-%dT%H:%M:%S")
 
         _LOGGER.debug("Fetching planifications from %s", from_date_str)
@@ -256,6 +291,9 @@ class PlanifNeigeClient:
             True if token is valid, False otherwise
         """
         try:
+            # Ensure SOAP client is initialized first
+            await self._ensure_client()
+
             # Try to get planifications from last week
             from datetime import timedelta
             test_date = datetime.now() - timedelta(days=7)

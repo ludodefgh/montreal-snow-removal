@@ -66,9 +66,15 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             except PlanifNeigeAuthError:
                 errors["base"] = "invalid_auth"
-            except Exception:  # pylint: disable=broad-except
+            except Exception as err:  # pylint: disable=broad-except
                 _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+                # Check if it's a connection/server error
+                if "520" in str(err) or "Server Error" in str(err):
+                    errors["base"] = "cannot_connect"
+                elif "HTTP" in str(err) or "Connection" in str(err):
+                    errors["base"] = "cannot_connect"
+                else:
+                    errors["base"] = "unknown"
 
         # Show form
         data_schema = vol.Schema(
@@ -165,7 +171,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
     
-    async def _create_entry(self) -> FlowResult:
+    def _create_entry(self) -> FlowResult:
         """Create the config entry."""
         if not self._addresses:
             # Should not happen, but fallback to address step

@@ -28,6 +28,7 @@
     },
     "error": {
       "invalid_auth": "Jeton API invalide. Veuillez vérifier votre jeton et réessayer.",
+      "cannot_connect": "Impossible de se connecter à l'API Planif-Neige. Le serveur est peut-être temporairement indisponible. Veuillez réessayer plus tard ou basculer vers l'API de test.",
       "unknown": "Une erreur inattendue s'est produite. Veuillez réessayer.",
       "name_required": "Le nom est requis",
       "cote_rue_id_required": "Le COTE_RUE_ID est requis",

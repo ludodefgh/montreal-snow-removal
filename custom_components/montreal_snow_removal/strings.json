@@ -28,6 +28,7 @@
     },
     "error": {
       "invalid_auth": "Invalid API token. Please check your token and try again.",
+      "cannot_connect": "Cannot connect to Planif-Neige API. The server may be temporarily unavailable. Please try again later or switch to test API.",
       "unknown": "An unexpected error occurred. Please try again.",
       "name_required": "Name is required",
       "cote_rue_id_required": "COTE_RUE_ID is required",

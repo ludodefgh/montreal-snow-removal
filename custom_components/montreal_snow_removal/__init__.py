@@ -46,7 +46,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api_client = PlanifNeigeClient(api_token, use_production)
 
     # Initialize Geobase handler
-    data_dir = Path(hass.config.config_dir) / "custom_components" / DOMAIN / "data"
+    # Store data in HA config directory, not in custom_components
+    data_dir = Path(hass.config.config_dir) / DOMAIN
     geobase = GeobaseHandler(data_dir)
 
     # Load geobase (from cache or download)

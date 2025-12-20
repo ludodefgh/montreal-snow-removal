@@ -303,17 +303,21 @@ class PlanifNeigeClient:
             ),
         }
 
-    def _parse_datetime(self, dt_str: str | None) -> datetime | None:
+    def _parse_datetime(self, dt_str: str | datetime | None) -> datetime | None:
         """Parse datetime string from API.
 
         Args:
-            dt_str: ISO 8601 datetime string or None
+            dt_str: ISO 8601 datetime string, datetime object, or None
 
         Returns:
             Parsed datetime object or None
         """
         if not dt_str:
             return None
+
+        # If already a datetime object, return it directly
+        if isinstance(dt_str, datetime):
+            return dt_str
 
         try:
             # Handle various datetime formats from API

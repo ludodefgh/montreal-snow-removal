@@ -283,23 +283,23 @@ class PlanifNeigeClient:
             Parsed planification dictionary
         """
         return {
-            "mun_id": getattr(planif, "MUNID", None),
-            "cote_rue_id": getattr(planif, "COTE_RUE_ID", None),
-            "etat_deneig": getattr(planif, "ETAT_DENEIG", None),
+            "mun_id": getattr(planif, "munid", None),
+            "cote_rue_id": getattr(planif, "coteRueId", None),
+            "etat_deneig": getattr(planif, "etatDeneig", None),
             "date_deb_planif": self._parse_datetime(
-                getattr(planif, "DATE_DEB_PLANIF", None)
+                getattr(planif, "dateDebutPlanif", None)
             ),
             "date_fin_planif": self._parse_datetime(
-                getattr(planif, "DATE_FIN_PLANIF", None)
+                getattr(planif, "dateFinPlanif", None)
             ),
             "date_deb_replanif": self._parse_datetime(
-                getattr(planif, "DATE_DEB_REPLANIF", None)
+                getattr(planif, "dateDebutReplanif", None)
             ),
             "date_fin_replanif": self._parse_datetime(
-                getattr(planif, "DATE_FIN_REPLANIF", None)
+                getattr(planif, "dateFinReplanif", None)
             ),
             "date_maj": self._parse_datetime(
-                getattr(planif, "DATE_MAJ", None)
+                getattr(planif, "dateMaj", None)
             ),
         }
 

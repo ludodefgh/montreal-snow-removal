@@ -196,12 +196,12 @@ def test_api_call(api_token: str, use_production: bool = True) -> dict:
                         print(f"   Type d'entrée: {type(ip)}")
                         print(f"   Attributs disponibles: {[attr for attr in dir(ip) if not attr.startswith('_')]}")
 
-                        # Essayer différentes variantes de noms
-                        for attr_name in ['COTE_RUE_ID', 'coteRueId', 'cote_rue_id', 'CoteRueId']:
-                            val = getattr(ip, attr_name, None)
-                            if val is not None:
-                                print(f"   {attr_name}: {val}")
-                                break
+                        # Afficher les valeurs avec les vrais noms de champs
+                        print(f"   coteRueId: {getattr(ip, 'coteRueId', 'N/A')}")
+                        print(f"   etatDeneig: {getattr(ip, 'etatDeneig', 'N/A')}")
+                        print(f"   dateDebutPlanif: {getattr(ip, 'dateDebutPlanif', 'N/A')}")
+                        print(f"   dateFinPlanif: {getattr(ip, 'dateFinPlanif', 'N/A')}")
+                        print(f"   dateMaj: {getattr(ip, 'dateMaj', 'N/A')}")
                 else:
                     print(f"   Aucune planification interne (normal si pas d'opération en cours)")
         else:
@@ -284,14 +284,14 @@ def test_specific_address(api_token: str, cote_rue_id: int, use_production: bool
         # Chercher l'adresse spécifique
         found = False
         for p in planifs:
-            if getattr(p, 'COTE_RUE_ID', None) == cote_rue_id:
+            if getattr(p, 'coteRueId', None) == cote_rue_id:
                 found = True
                 print(f"\n✅ Adresse trouvée!")
-                print(f"   COTE_RUE_ID: {getattr(p, 'COTE_RUE_ID', 'N/A')}")
-                print(f"   ETAT_DENEIG: {getattr(p, 'ETAT_DENEIG', 'N/A')}")
-                print(f"   DATE_DEB_PLANIF: {getattr(p, 'DATE_DEB_PLANIF', 'N/A')}")
-                print(f"   DATE_FIN_PLANIF: {getattr(p, 'DATE_FIN_PLANIF', 'N/A')}")
-                print(f"   DATE_MAJ: {getattr(p, 'DATE_MAJ', 'N/A')}")
+                print(f"   coteRueId: {getattr(p, 'coteRueId', 'N/A')}")
+                print(f"   etatDeneig: {getattr(p, 'etatDeneig', 'N/A')}")
+                print(f"   dateDebutPlanif: {getattr(p, 'dateDebutPlanif', 'N/A')}")
+                print(f"   dateFinPlanif: {getattr(p, 'dateFinPlanif', 'N/A')}")
+                print(f"   dateMaj: {getattr(p, 'dateMaj', 'N/A')}")
                 break
 
         if not found:

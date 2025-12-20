@@ -11,17 +11,11 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import config_validation as cv
 
-from .api.planif_neige import (
-    PlanifNeigeAuthError,
-    PlanifNeigeClient,
-)
 from .const import (
     CONF_ADDRESS,
     CONF_ADDRESSES,
-    CONF_API_TOKEN,
     CONF_COTE_RUE_ID,
     CONF_NAME,
-    CONF_USE_PRODUCTION,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -36,59 +30,15 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self) -> None:
         """Initialize the config flow."""
-        self._api_token: str | None = None
-        self._use_production: bool = True
         self._addresses: list[dict[str, Any]] = []
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
-        errors = {}
-
-        if user_input is not None:
-            # Validate API token
-            api_token = user_input[CONF_API_TOKEN]
-            use_production = user_input.get(CONF_USE_PRODUCTION, True)
-
-            # Test API connection
-            try:
-                client = PlanifNeigeClient(api_token, use_production)
-                is_valid = await client.async_validate_token()
-
-                if not is_valid:
-                    errors["base"] = "invalid_auth"
-                else:
-                    # Store token and proceed to address configuration
-                    self._api_token = api_token
-                    self._use_production = use_production
-                    return await self.async_step_address()
-
-            except PlanifNeigeAuthError:
-                errors["base"] = "invalid_auth"
-            except Exception as err:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                # Check if it's a connection/server error
-                if "520" in str(err) or "Server Error" in str(err):
-                    errors["base"] = "cannot_connect"
-                elif "HTTP" in str(err) or "Connection" in str(err):
-                    errors["base"] = "cannot_connect"
-                else:
-                    errors["base"] = "unknown"
-
-        # Show form
-        data_schema = vol.Schema(
-            {
-                vol.Required(CONF_API_TOKEN): str,
-                vol.Optional(CONF_USE_PRODUCTION, default=True): bool,
-            }
-        )
-
-        return self.async_show_form(
-            step_id="user",
-            data_schema=data_schema,
-            errors=errors,
-        )
+        """Handle the initial step - go directly to address configuration."""
+        # No API token needed anymore - using public API!
+        # Go directly to address configuration
+        return await self.async_step_address()
 
     async def async_step_address(
         self, user_input: dict[str, Any] | None = None
@@ -185,8 +135,6 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_create_entry(
             title=f"Montreal Snow Removal ({len(self._addresses)} address(es))",
             data={
-                CONF_API_TOKEN: self._api_token,
-                CONF_USE_PRODUCTION: self._use_production,
                 CONF_ADDRESSES: self._addresses,
             },
         )

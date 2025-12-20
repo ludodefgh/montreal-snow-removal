@@ -7,6 +7,6 @@
   "documentation": "https://github.com/ludodefgh/montreal-snow-removal",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ludodefgh/montreal-snow-removal/issues",
-  "requirements": ["zeep>=4.2.1", "aiohttp>=3.8.0"],
-  "version": "1.0.0"
+  "requirements": ["aiohttp>=3.8.0"],
+  "version": "2.0.0"
 }

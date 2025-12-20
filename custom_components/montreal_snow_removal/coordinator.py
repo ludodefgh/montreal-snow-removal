@@ -11,11 +11,9 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
-from .api.planif_neige import (
-    PlanifNeigeAPIError,
-    PlanifNeigeAuthError,
-    PlanifNeigeClient,
-    PlanifNeigeRateLimitError,
+from .api.public_api import (
+    PublicAPIClient,
+    PublicAPIError,
 )
 from .api.geobase import GeobaseHandler
 from .const import (
@@ -33,7 +31,7 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
     def __init__(
         self,
         hass: HomeAssistant,
-        api_client: PlanifNeigeClient,
+        api_client: PublicAPIClient,
         geobase: GeobaseHandler,
         update_interval: int,
         tracked_cote_rue_ids: list[int],
@@ -42,7 +40,7 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
 
         Args:
             hass: Home Assistant instance
-            api_client: Planif-Neige API client
+            api_client: Public API client
             geobase: Geobase handler for street name mapping
             update_interval: Update interval in seconds (min 300)
             tracked_cote_rue_ids: List of COTE_RUE_ID to track
@@ -78,18 +76,10 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
             UpdateFailed: When update fails
         """
         try:
-            # Determine from_date for API call
-            # First time: get data from last 30 days
-            # Subsequent: get data since last update
-            if self.last_update_time is None:
-                from_date = datetime.now() - timedelta(days=30)
-                _LOGGER.debug("First update, fetching last 30 days")
-            else:
-                from_date = self.last_update_time
-                _LOGGER.debug("Fetching updates since %s", from_date)
-
-            # Call API
-            response = await self.api_client.async_get_planifications(from_date)
+            # Fetch all planifications from public API
+            # (Public API already returns all active planifications)
+            _LOGGER.debug("Fetching planifications from public API")
+            response = await self.api_client.async_get_planifications()
 
             # Update last update time
             self.last_update_time = datetime.now()
@@ -162,17 +152,8 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
             # Return current state for all tracked streets
             return self._street_data
 
-        except PlanifNeigeAuthError as err:
-            _LOGGER.error("Authentication error: %s", err)
-            raise UpdateFailed(f"Authentication failed: {err}") from err
-
-        except PlanifNeigeRateLimitError as err:
-            _LOGGER.warning("Rate limit exceeded: %s", err)
-            # Don't fail, just return current data
-            return self._street_data
-
-        except PlanifNeigeAPIError as err:
-            _LOGGER.error("API error: %s", err)
+        except PublicAPIError as err:
+            _LOGGER.error("Public API error: %s", err)
             raise UpdateFailed(f"API error: {err}") from err
 
         except Exception as err:

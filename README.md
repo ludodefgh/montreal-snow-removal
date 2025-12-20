@@ -38,10 +38,9 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 
 ### Prerequisites
 
-You need an API token from Ville de Montréal:
-- Email: donneesouvertes@montreal.ca
-- Request access to the Planif-Neige API
-- You'll receive a token in the format: `aaaaa-bbbbb-ccccc-ddddd`
+**No API token required!** 🎉
+
+This integration now uses a [public API](https://github.com/ludodefgh/planif-neige-public-api) that provides free access to Montreal's snow removal data without requiring you to request a token from the city.
 
 ### Finding Your COTE_RUE_ID
 
@@ -65,14 +64,13 @@ COTE_RUE_ID: 10100011
 1. Go to **Settings** → **Devices & Services**
 2. Click **+ Add Integration**
 3. Search for "**Montréal Snow Removal**"
-4. Enter your **API token**
-5. Choose **Production API** (or uncheck for testing)
-6. Click **Submit**
-7. Add addresses:
+4. Add addresses:
    - **Name**: Friendly name (e.g., "Home", "Work")
    - **Address**: Full address (optional, for reference)
    - **COTE_RUE_ID**: Street side identifier (required)
-8. Add more addresses or click **Finish**
+5. Add more addresses or click **Finish**
+
+That's it! No API token configuration needed.
 
 ## Entities
 
@@ -265,9 +263,22 @@ Contributions are welcome! Please:
 - **Discussions**: [GitHub Discussions](https://github.com/ludovic/montreal-snow-removal/discussions)
 - **API Questions**: donneesouvertes@montreal.ca
 
-## Roadmap
+## Changelog
 
-### Version 1.0 (Current)
+### Version 2.0.0 (Current) 🎉
+
+**Major Changes:**
+- ✅ **No API token required!** - Now uses public API
+- ✅ Simplified configuration - removed token setup step
+- ✅ Improved reliability - public API updated every 10 minutes
+- ✅ Removed zeep dependency - lighter installation
+- ✅ Uses [planif-neige-public-api](https://github.com/ludodefgh/planif-neige-public-api)
+
+**Migration from v1.x:**
+- Existing installations will need to be reconfigured (remove and re-add the integration)
+- No token needed in v2.0!
+
+### Version 1.0.0
 - ✅ SOAP API integration
 - ✅ Snow removal status sensors
 - ✅ Parking ban binary sensors

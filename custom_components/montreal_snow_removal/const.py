@@ -3,16 +3,22 @@ from typing import Final
 
 DOMAIN: Final = "montreal_snow_removal"
 
-# API Configuration
+# Public API URLs (from planif-neige-public-api)
+PUBLIC_API_BASE_URL: Final = "https://raw.githubusercontent.com/ludodefgh/planif-neige-public-api/main/data"
+PUBLIC_API_PLANIF_URL: Final = f"{PUBLIC_API_BASE_URL}/planif-neige.json"
+PUBLIC_API_METADATA_URL: Final = f"{PUBLIC_API_BASE_URL}/planif-neige-metadata.json"
+PUBLIC_API_GEOBASE_URL: Final = f"{PUBLIC_API_BASE_URL}/geobase-map.json"
+
+# Legacy API Configuration (deprecated - kept for reference)
 API_URL_PROD: Final = "https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService"
 API_URL_TEST: Final = "https://servicesenlignedev.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService"
 API_WSDL_SUFFIX: Final = "?wsdl"
 
 # Rate Limiting
-MIN_SCAN_INTERVAL: Final = 300  # 5 minutes minimum (API requirement)
+MIN_SCAN_INTERVAL: Final = 300  # 5 minutes minimum (public API updates every 10 min)
 DEFAULT_SCAN_INTERVAL: Final = 600  # 10 minutes default
 
-# Geobase Configuration
+# Geobase Configuration (legacy - now using public API)
 GEOBASE_URL: Final = "https://data.montreal.ca/api/3/action/datastore_search"
 GEOBASE_RESOURCE_ID: Final = "2f1717e9-0141-48ef-8943-ea348373667f"
 GEOBASE_UPDATE_INTERVAL: Final = 604800  # 1 week in seconds

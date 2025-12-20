@@ -9,13 +9,13 @@ from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 
+import aiohttp
+
 from .api.geobase import GeobaseError, GeobaseHandler
-from .api.planif_neige import PlanifNeigeClient
+from .api.public_api import PublicAPIClient
 from .const import (
     CONF_ADDRESSES,
-    CONF_API_TOKEN,
     CONF_COTE_RUE_ID,
-    CONF_USE_PRODUCTION,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -31,8 +31,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Setting up Montreal Snow Removal integration")
 
     # Get configuration
-    api_token = entry.data[CONF_API_TOKEN]
-    use_production = entry.data.get(CONF_USE_PRODUCTION, True)
     addresses = entry.data[CONF_ADDRESSES]
 
     # Extract COTE_RUE_IDs to track
@@ -42,20 +40,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "Setting up integration with %d address(es)", len(tracked_cote_rue_ids)
     )
 
-    # Initialize API client
-    api_client = PlanifNeigeClient(api_token, use_production)
+    # Initialize API client with shared aiohttp session
+    session = aiohttp.ClientSession()
+    api_client = PublicAPIClient(session)
 
     # Initialize Geobase handler
-    # Store data in HA config directory, not in custom_components
+    # Now using public API for geobase data (no local cache needed)
     data_dir = Path(hass.config.config_dir) / DOMAIN
     geobase = GeobaseHandler(data_dir)
 
-    # Load geobase (from cache or download)
     try:
-        await geobase.async_load()
-        _LOGGER.info("Geobase loaded with %d streets", geobase.street_count)
-    except GeobaseError as err:
-        _LOGGER.error("Failed to load geobase: %s", err)
+        geobase_data = await api_client.async_get_geobase_mapping()
+        # Convert string keys to int for compatibility
+        geobase._mapping = {int(k): v for k, v in geobase_data.items()}
+        geobase._loaded = True
+        _LOGGER.info("Geobase loaded with %d streets from public API", len(geobase._mapping))
+    except Exception as err:
+        _LOGGER.error("Failed to load geobase from public API: %s", err)
         raise ConfigEntryNotReady(f"Failed to load geobase: {err}") from err
 
     # Get scan interval from options or use default
@@ -73,13 +74,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
-    # Store coordinator in hass.data
+    # Store coordinator and session in hass.data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
         "coordinator": coordinator,
         "api_client": api_client,
         "geobase": geobase,
         "addresses": addresses,
+        "session": session,  # Store session for cleanup
     }
 
     # Forward entry setup to platforms
@@ -100,9 +102,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Unload platforms
     unload_ok = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
-    # Remove data
+    # Close aiohttp session and remove data
     if unload_ok:
-        hass.data[DOMAIN].pop(entry.entry_id)
+        entry_data = hass.data[DOMAIN].pop(entry.entry_id)
+        session = entry_data.get("session")
+        if session:
+            await session.close()
 
     return unload_ok
 

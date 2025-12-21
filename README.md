@@ -1,7 +1,7 @@
 # Montréal Snow Removal (Planif-Neige) - Home Assistant Integration
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
-[![GitHub release](https://img.shields.io/github/release/ludovic/montreal-snow-removal.svg)](https://github.com/ludovic/montreal-snow-removal/releases)
+[![GitHub release](https://img.shields.io/github/release/ludodefgh/montreal-snow-removal.svg)](https://github.com/ludodefgh/montreal-snow-removal/releases)
 
 A custom Home Assistant integration that tracks snow removal operations in Montreal streets using the official Planif-Neige API from Ville de Montréal.
 
@@ -11,7 +11,6 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 - **Parking ban alerts** - know when you can't park on your street
 - **Multiple addresses** - track home, work, or any location in Montreal
 - **Bilingual support** - Full French and English translations
-- **Automatic updates** - Respects API rate limits (5 min minimum)
 - **Rich attributes** - Street names, dates, hours until snow removal starts
 
 ## Installation

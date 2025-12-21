@@ -43,9 +43,39 @@
     "step": {
       "init": {
         "title": "Montreal Snow Removal Options",
-        "description": "Configure polling interval",
+        "description": "Choose what you want to configure",
+        "data": {
+          "next_step": "Configuration option"
+        }
+      },
+      "scan_interval": {
+        "title": "Configure Scan Interval",
+        "description": "Set how often to check for updates",
         "data": {
           "scan_interval": "Update interval (seconds, minimum 300)"
+        }
+      },
+      "manage_addresses": {
+        "title": "Manage Addresses",
+        "description": "Currently tracking {address_count} address(es). Choose an action:",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_address": {
+        "title": "Add New Address",
+        "description": "Add a new address to track",
+        "data": {
+          "name": "Name (e.g., Home, Work)",
+          "address": "Full Address (optional, for reference only)",
+          "cote_rue_id": "COTE_RUE_ID (Street Side ID)"
+        }
+      },
+      "confirm_delete": {
+        "title": "Confirm Deletion",
+        "description": "Are you sure you want to delete '{address_name}'?",
+        "data": {
+          "confirm": "Confirm deletion"
         }
       }
     }

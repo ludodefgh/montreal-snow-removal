@@ -43,9 +43,39 @@
     "step": {
       "init": {
         "title": "Options Déneigement Montréal",
-        "description": "Configurer l'intervalle de mise à jour",
+        "description": "Choisissez ce que vous voulez configurer",
+        "data": {
+          "next_step": "Option de configuration"
+        }
+      },
+      "scan_interval": {
+        "title": "Configurer l'intervalle de mise à jour",
+        "description": "Définir la fréquence de vérification des mises à jour",
         "data": {
           "scan_interval": "Intervalle de mise à jour (secondes, minimum 300)"
+        }
+      },
+      "manage_addresses": {
+        "title": "Gérer les adresses",
+        "description": "Vous suivez actuellement {address_count} adresse(s). Choisissez une action:",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_address": {
+        "title": "Ajouter une nouvelle adresse",
+        "description": "Ajouter une nouvelle adresse à suivre",
+        "data": {
+          "name": "Nom (ex: Maison, Travail)",
+          "address": "Adresse complète (optionnel, pour référence seulement)",
+          "cote_rue_id": "COTE_RUE_ID (Identifiant du côté de rue)"
+        }
+      },
+      "confirm_delete": {
+        "title": "Confirmer la suppression",
+        "description": "Êtes-vous sûr de vouloir supprimer '{address_name}' ?",
+        "data": {
+          "confirm": "Confirmer la suppression"
         }
       }
     }

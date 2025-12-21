@@ -9,13 +9,35 @@
           "use_production": "Use Production API (uncheck for testing)"
         }
       },
-      "address": {
-        "title": "Add Address",
-        "description": "Add an address to track. Currently tracking {address_count} address(es).",
+      "address_entry": {
+        "title": "Enter Address",
+        "description": "Enter your full Montreal address to automatically find it. Currently tracking {address_count} address(es).",
+        "data": {
+          "full_address": "Full Address (e.g., '1234 rue Example')",
+          "use_manual_entry": "Manual entry (advanced)"
+        }
+      },
+      "address_manual": {
+        "title": "Add Address Manually",
+        "description": "Enter the COTE_RUE_ID directly. Currently tracking {address_count} address(es).",
         "data": {
           "name": "Name (e.g., Home, Work)",
           "address": "Full Address (optional, for reference only)",
           "cote_rue_id": "COTE_RUE_ID (Street Side ID)"
+        }
+      },
+      "address_select": {
+        "title": "Select Street Side",
+        "description": "Multiple matches found. Select the correct street side:",
+        "data": {
+          "selected_cote_rue_id": "Street Side"
+        }
+      },
+      "address_confirm": {
+        "title": "Confirm Address",
+        "description": "Confirm the selected address:\n{street_info}",
+        "data": {
+          "name": "Name for this address"
         }
       },
       "add_another": {
@@ -32,7 +54,11 @@
       "unknown": "An unexpected error occurred. Please try again.",
       "name_required": "Name is required",
       "cote_rue_id_required": "COTE_RUE_ID is required",
-      "invalid_cote_rue_id": "COTE_RUE_ID must be a number"
+      "invalid_cote_rue_id": "COTE_RUE_ID must be a number",
+      "address_not_found": "No matching street found. Please check the address or use manual entry.",
+      "invalid_address_format": "Please enter a valid address with a number and street name.",
+      "geobase_unavailable": "Unable to load street database. Please try again or use manual entry.",
+      "timeout": "Request timed out. Please check your connection and try again."
     },
     "abort": {
       "already_configured": "This integration is already configured",
@@ -64,11 +90,33 @@
       },
       "add_address": {
         "title": "Add New Address",
-        "description": "Add a new address to track",
+        "description": "Enter your full address to automatically find it",
+        "data": {
+          "full_address": "Full Address (e.g., '1234 rue Example')",
+          "use_manual_entry": "Manual entry (advanced)"
+        }
+      },
+      "add_address_manual": {
+        "title": "Add Address Manually",
+        "description": "Enter the COTE_RUE_ID directly",
         "data": {
           "name": "Name (e.g., Home, Work)",
           "address": "Full Address (optional, for reference only)",
           "cote_rue_id": "COTE_RUE_ID (Street Side ID)"
+        }
+      },
+      "add_address_select": {
+        "title": "Select Street Side",
+        "description": "Multiple matches found. Select the correct street side:",
+        "data": {
+          "selected_cote_rue_id": "Street Side"
+        }
+      },
+      "add_address_confirm": {
+        "title": "Confirm Address",
+        "description": "Confirm the selected address:\n{street_info}",
+        "data": {
+          "name": "Name for this address"
         }
       },
       "confirm_delete": {

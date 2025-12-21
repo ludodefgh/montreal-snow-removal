@@ -42,14 +42,30 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 
 This integration now uses a [public API](https://github.com/ludodefgh/planif-neige-public-api) that provides free access to Montreal's snow removal data without requiring you to request a token from the city.
 
-### Finding Your COTE_RUE_ID
+### Setup via UI
 
-To track a specific address, you need its `COTE_RUE_ID` (street side identifier):
+1. Go to **Settings** → **Devices & Services**
+2. Click **+ Add Integration**
+3. Search for "**Montréal Snow Removal**"
+4. Enter your full Montreal address (e.g., "1234 rue Example")
+   - The integration will **automatically search** for your street
+   - If multiple matches are found, select the correct street side
+   - Alternatively, use **Manual entry (advanced)** to enter COTE_RUE_ID directly
+5. Give your address a friendly name (e.g., "Home", "Work")
+6. Add more addresses or click **Finish**
 
-1. Visit the [Geobase Double dataset](https://donnees.montreal.ca/dataset/geobase-double)
-2. Download the GeoJSON or CSV file
-3. Search for your street name and address range
-4. Note the `COTE_RUE_ID` value
+That's it! No API token or manual street lookup needed. ✨
+
+### Advanced: Manual COTE_RUE_ID Entry
+
+If automatic search doesn't find your address, you can enter the `COTE_RUE_ID` manually:
+
+1. During setup, check the **Manual entry (advanced)** option
+2. Find your COTE_RUE_ID:
+   - Visit the [Geobase Double dataset](https://donnees.montreal.ca/dataset/geobase-double)
+   - Download the GeoJSON or CSV file
+   - Search for your street name and address range
+   - Note the `COTE_RUE_ID` value
 
 **Example:**
 ```
@@ -58,19 +74,6 @@ Address range: 12323-12335
 Side: Right (Droite)
 COTE_RUE_ID: 10100011
 ```
-
-### Setup via UI
-
-1. Go to **Settings** → **Devices & Services**
-2. Click **+ Add Integration**
-3. Search for "**Montréal Snow Removal**"
-4. Add addresses:
-   - **Name**: Friendly name (e.g., "Home", "Work")
-   - **Address**: Full address (optional, for reference)
-   - **COTE_RUE_ID**: Street side identifier (required)
-5. Add more addresses or click **Finish**
-
-That's it! No API token configuration needed.
 
 ## Entities
 
@@ -187,15 +190,18 @@ automation:
           message: "You can now park on your street again"
 ```
 
-## Options
+## Managing Addresses
 
-After installation, you can configure:
+After installation, you can manage your tracked addresses:
 
 1. Go to **Settings** → **Devices & Services**
 2. Find "**Montréal Snow Removal**"
 3. Click **Configure**
-4. Adjust:
-   - **Update interval** (minimum 300 seconds / 5 minutes)
+4. Choose an option:
+   - **Configure scan interval** - Adjust update frequency (minimum 300 seconds / 5 minutes)
+   - **Manage addresses** - Add or delete tracked addresses
+     - **Add new address** - Uses automatic address search (same as initial setup)
+     - **Delete** - Remove addresses you no longer want to track
 
 ## Important Notes
 
@@ -265,7 +271,15 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.0.0 (Current) 🎉
+### Version 2.1.0 (Current) 🎉
+
+**New Features:**
+- ✨ **Automatic address search** - Just enter your address, no need to find COTE_RUE_ID!
+- ✨ **Smart street matching** - Handles accents, abbreviations, and multiple results
+- ✨ **Address management** - Add/delete addresses through options menu
+- ✨ **Manual fallback** - Advanced option to enter COTE_RUE_ID directly
+
+### Version 2.0.0
 
 **Major Changes:**
 - ✅ **No API token required!** - Now uses public API
@@ -286,7 +300,6 @@ Contributions are welcome! Please:
 - ✅ French/English support
 
 ### Future Versions
-- 🔲 Automatic geocoding from addresses
 - 🔲 Visual map of streets being cleared
 - 🔲 Integration with free parking during snow removal
 - 🔲 Snow removal history tracking

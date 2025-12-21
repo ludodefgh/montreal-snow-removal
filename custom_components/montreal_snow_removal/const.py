@@ -82,6 +82,7 @@ ICON_MAP: Final = {
 CONF_API_TOKEN: Final = "api_token"
 CONF_ADDRESSES: Final = "addresses"
 CONF_ADDRESS: Final = "address"
+CONF_FULL_ADDRESS: Final = "full_address"
 CONF_NAME: Final = "name"
 CONF_COTE_RUE_ID: Final = "cote_rue_id"
 CONF_USE_PRODUCTION: Final = "use_production"

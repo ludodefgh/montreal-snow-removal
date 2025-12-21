@@ -10,7 +10,7 @@ def search_address(street_name: str, street_number: int = None):
     """Search for an address in the public API geobase.
 
     Args:
-        street_name: Name of the street (e.g., "something")
+        street_name: Name of the street (e.g., "Something")
         street_number: Optional street number to filter by range
     """
     print("Downloading geobase from public API...")

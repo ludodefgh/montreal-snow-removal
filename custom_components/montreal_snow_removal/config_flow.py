@@ -31,19 +31,23 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self) -> None:
         """Initialize the config flow."""
         self._addresses: list[dict[str, Any]] = []
+        self._geobase = None  # GeobaseHandler for address search
+        self._search_results: list[dict] = []
+        self._current_address_search: str = ""
+        self._selected_cote_rue_id: int | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step - go directly to address configuration."""
+        """Handle the initial step - go directly to address entry."""
         # No API token needed anymore - using public API!
-        # Go directly to address configuration
-        return await self.async_step_address()
+        # Go directly to address entry (automatic search)
+        return await self.async_step_address_entry()
 
-    async def async_step_address(
+    async def async_step_address_manual(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle address configuration step."""
+        """Handle manual address configuration (fallback)."""
         errors = {}
 
         if user_input is not None:
@@ -88,7 +92,7 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
         return self.async_show_form(
-            step_id="address",
+            step_id="address_manual",
             data_schema=data_schema,
             errors=errors,
             description_placeholders={
@@ -96,13 +100,262 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             },
         )
 
+    async def async_step_address_entry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle address entry step (automatic search)."""
+        errors = {}
+
+        if user_input is not None:
+            # Check if user wants manual entry
+            if user_input.get("use_manual_entry", False):
+                return await self.async_step_address_manual()
+
+            # Get full address
+            full_address = user_input.get("full_address", "").strip()
+
+            if not full_address:
+                errors["full_address"] = "invalid_address_format"
+            else:
+                # Store for search
+                self._current_address_search = full_address
+                # Proceed to search
+                return await self.async_step_address_search()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("full_address"): str,
+                vol.Optional("use_manual_entry", default=False): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="address_entry",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "address_count": str(len(self._addresses)),
+            },
+        )
+
+    async def async_step_address_search(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Perform address search."""
+        from .address_parser import AddressParser
+        from .api.geobase import GeobaseHandler
+
+        errors = {}
+
+        # Parse address
+        parsed = AddressParser.parse_address(self._current_address_search)
+
+        if not parsed or not parsed.get("street_name"):
+            # Parsing failed
+            errors["base"] = "invalid_address_format"
+            return self.async_show_form(
+                step_id="address_entry",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        # Ensure geobase is loaded
+        try:
+            await self._ensure_geobase_loaded()
+        except Exception as err:
+            _LOGGER.error("Failed to load geobase: %s", err)
+            errors["base"] = "geobase_unavailable"
+            return self.async_show_form(
+                step_id="address_entry",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        # Search address
+        self._search_results = self._geobase.search_address(
+            parsed.get("street_number"), parsed.get("street_name")
+        )
+
+        if not self._search_results:
+            # No matches found
+            errors["base"] = "address_not_found"
+            return self.async_show_form(
+                step_id="address_entry",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        if len(self._search_results) == 1:
+            # Single match - auto-select
+            self._selected_cote_rue_id = self._search_results[0]["cote_rue_id"]
+            return await self.async_step_address_confirm()
+
+        # Multiple matches - let user choose
+        return await self.async_step_address_select()
+
+    async def async_step_address_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle address selection (multiple matches)."""
+        if user_input is not None:
+            # Get selected COTE_RUE_ID
+            self._selected_cote_rue_id = int(user_input.get("selected_cote_rue_id"))
+            return await self.async_step_address_confirm()
+
+        # Build selection options
+        options = {}
+        for match in self._search_results:
+            cote_rue_id = match["cote_rue_id"]
+            info = match["info"]
+
+            # Format label: "Avenue Something (2100-2198) - Côté Gauche"
+            type_voie = info.get("type_voie", "").capitalize()
+            nom_voie = info.get("nom_voie", "")
+            debut = info.get("debut_adresse", "")
+            fin = info.get("fin_adresse", "")
+            cote = info.get("cote", "")
+
+            label = f"{type_voie} {nom_voie}"
+            if debut and fin:
+                label += f" ({debut}-{fin})"
+            if cote:
+                label += f" - {cote}"
+
+            # Mark in-range matches
+            if match.get("in_range"):
+                label += " ✓"
+
+            options[str(cote_rue_id)] = label
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("selected_cote_rue_id"): vol.In(options),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="address_select",
+            data_schema=data_schema,
+        )
+
+    async def async_step_address_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm selected address."""
+        if user_input is not None:
+            # Get name
+            name = user_input.get(CONF_NAME, "").strip()
+
+            if not name:
+                # Show error
+                return self.async_show_form(
+                    step_id="address_confirm",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Required(CONF_NAME): str,
+                        }
+                    ),
+                    errors={CONF_NAME: "name_required"},
+                    description_placeholders=self._get_street_info_description(),
+                )
+
+            # Add address to list
+            self._addresses.append(
+                {
+                    CONF_NAME: name,
+                    CONF_ADDRESS: self._current_address_search,
+                    CONF_COTE_RUE_ID: self._selected_cote_rue_id,
+                }
+            )
+
+            # Ask if user wants to add another
+            return await self.async_step_add_another()
+
+        # Get street info for display
+        street_info = self._get_street_info_description()
+
+        # Default name based on street
+        default_name = street_info.get("default_name", f"Address {len(self._addresses) + 1}")
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=default_name): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="address_confirm",
+            data_schema=data_schema,
+            description_placeholders=street_info,
+        )
+
+    async def _ensure_geobase_loaded(self) -> None:
+        """Ensure geobase is loaded for searching."""
+        from .api.geobase import GeobaseHandler
+
+        if self._geobase is None or not self._geobase.is_loaded:
+            self._geobase = await GeobaseHandler.async_create_temporary()
+
+    def _get_street_info_description(self) -> dict[str, str]:
+        """Get street info for description placeholders."""
+        if not self._geobase or not self._selected_cote_rue_id:
+            return {"street_info": "Unknown", "default_name": "Address"}
+
+        info = self._geobase.get_street_info(self._selected_cote_rue_id)
+        if not info:
+            return {"street_info": "Unknown", "default_name": "Address"}
+
+        type_voie = info.get("type_voie", "").capitalize()
+        nom_voie = info.get("nom_voie", "")
+        debut = info.get("debut_adresse", "")
+        fin = info.get("fin_adresse", "")
+        cote = info.get("cote", "")
+
+        street_info = f"{type_voie} {nom_voie}"
+        if debut and fin:
+            street_info += f" ({debut}-{fin})"
+        if cote:
+            street_info += f" - {cote}"
+
+        default_name = f"{type_voie} {nom_voie}".strip()
+
+        return {
+            "street_info": street_info,
+            "default_name": default_name,
+        }
+
     async def async_step_add_another(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Ask if user wants to add another address."""
         if user_input is not None:
             if user_input.get("add_another"):
-                return await self.async_step_address()
+                # Reset for next address
+                self._search_results = []
+                self._current_address_search = ""
+                self._selected_cote_rue_id = None
+                return await self.async_step_address_entry()
 
             # Create the entry
             return await self._create_entry()
@@ -154,6 +407,10 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
     def __init__(self) -> None:
         """Initialize options flow."""
         self._addresses: list[dict[str, Any]] = []
+        self._geobase = None  # GeobaseHandler for address search
+        self._search_results: list[dict] = []
+        self._current_address_search: str = ""
+        self._selected_cote_rue_id: int | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -252,7 +509,42 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
     async def async_step_add_address(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Add a new address."""
+        """Add a new address - entry point (automatic search)."""
+        errors = {}
+
+        if user_input is not None:
+            # Check if user wants manual entry
+            if user_input.get("use_manual_entry", False):
+                return await self.async_step_add_address_manual()
+
+            # Get full address
+            full_address = user_input.get("full_address", "").strip()
+
+            if not full_address:
+                errors["full_address"] = "invalid_address_format"
+            else:
+                # Store for search
+                self._current_address_search = full_address
+                # Proceed to search
+                return await self.async_step_add_address_search()
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("full_address"): str,
+                vol.Optional("use_manual_entry", default=False): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="add_address",
+            data_schema=data_schema,
+            errors=errors,
+        )
+
+    async def async_step_add_address_manual(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Add a new address manually (fallback)."""
         errors = {}
 
         if user_input is not None:
@@ -306,10 +598,226 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
         )
 
         return self.async_show_form(
-            step_id="add_address",
+            step_id="add_address_manual",
             data_schema=data_schema,
             errors=errors,
         )
+
+    async def async_step_add_address_search(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Perform address search in options flow."""
+        from .address_parser import AddressParser
+        from .api.geobase import GeobaseHandler
+
+        errors = {}
+
+        # Parse address
+        parsed = AddressParser.parse_address(self._current_address_search)
+
+        if not parsed or not parsed.get("street_name"):
+            # Parsing failed
+            errors["base"] = "invalid_address_format"
+            return self.async_show_form(
+                step_id="add_address",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        # Ensure geobase is loaded
+        try:
+            await self._ensure_geobase_loaded()
+        except Exception as err:
+            _LOGGER.error("Failed to load geobase: %s", err)
+            errors["base"] = "geobase_unavailable"
+            return self.async_show_form(
+                step_id="add_address",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        # Search address
+        self._search_results = self._geobase.search_address(
+            parsed.get("street_number"), parsed.get("street_name")
+        )
+
+        if not self._search_results:
+            # No matches found
+            errors["base"] = "address_not_found"
+            return self.async_show_form(
+                step_id="add_address",
+                data_schema=vol.Schema(
+                    {
+                        vol.Required(
+                            "full_address", default=self._current_address_search
+                        ): str,
+                        vol.Optional("use_manual_entry", default=False): bool,
+                    }
+                ),
+                errors=errors,
+            )
+
+        if len(self._search_results) == 1:
+            # Single match - auto-select
+            self._selected_cote_rue_id = self._search_results[0]["cote_rue_id"]
+            return await self.async_step_add_address_confirm()
+
+        # Multiple matches - let user choose
+        return await self.async_step_add_address_select()
+
+    async def async_step_add_address_select(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle address selection (multiple matches) in options flow."""
+        if user_input is not None:
+            # Get selected COTE_RUE_ID
+            self._selected_cote_rue_id = int(user_input.get("selected_cote_rue_id"))
+            return await self.async_step_add_address_confirm()
+
+        # Build selection options
+        options = {}
+        for match in self._search_results:
+            cote_rue_id = match["cote_rue_id"]
+            info = match["info"]
+
+            # Format label: "Avenue Something (2100-2198) - Côté Gauche"
+            type_voie = info.get("type_voie", "").capitalize()
+            nom_voie = info.get("nom_voie", "")
+            debut = info.get("debut_adresse", "")
+            fin = info.get("fin_adresse", "")
+            cote = info.get("cote", "")
+
+            label = f"{type_voie} {nom_voie}"
+            if debut and fin:
+                label += f" ({debut}-{fin})"
+            if cote:
+                label += f" - {cote}"
+
+            # Mark in-range matches
+            if match.get("in_range"):
+                label += " ✓"
+
+            options[str(cote_rue_id)] = label
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("selected_cote_rue_id"): vol.In(options),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="add_address_select",
+            data_schema=data_schema,
+        )
+
+    async def async_step_add_address_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm selected address in options flow."""
+        if user_input is not None:
+            # Get name
+            name = user_input.get(CONF_NAME, "").strip()
+
+            if not name:
+                # Show error
+                return self.async_show_form(
+                    step_id="add_address_confirm",
+                    data_schema=vol.Schema(
+                        {
+                            vol.Required(CONF_NAME): str,
+                        }
+                    ),
+                    errors={CONF_NAME: "name_required"},
+                    description_placeholders=self._get_street_info_description(),
+                )
+
+            # Add address to list
+            self._addresses.append(
+                {
+                    CONF_NAME: name,
+                    CONF_ADDRESS: self._current_address_search,
+                    CONF_COTE_RUE_ID: self._selected_cote_rue_id,
+                }
+            )
+
+            # Update config entry
+            new_data = {**self.config_entry.data}
+            new_data[CONF_ADDRESSES] = self._addresses
+
+            self.hass.config_entries.async_update_entry(
+                self.config_entry,
+                data=new_data,
+                title=f"Montreal Snow Removal ({len(self._addresses)} address(es))",
+            )
+
+            return self.async_create_entry(title="", data=self.config_entry.options)
+
+        # Get street info for display
+        street_info = self._get_street_info_description()
+
+        # Default name based on street
+        default_name = street_info.get("default_name", f"Address {len(self._addresses) + 1}")
+
+        data_schema = vol.Schema(
+            {
+                vol.Required(CONF_NAME, default=default_name): str,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="add_address_confirm",
+            data_schema=data_schema,
+            description_placeholders=street_info,
+        )
+
+    async def _ensure_geobase_loaded(self) -> None:
+        """Ensure geobase is loaded for searching."""
+        from .api.geobase import GeobaseHandler
+
+        if self._geobase is None or not self._geobase.is_loaded:
+            self._geobase = await GeobaseHandler.async_create_temporary()
+
+    def _get_street_info_description(self) -> dict[str, str]:
+        """Get street info for description placeholders."""
+        if not self._geobase or not self._selected_cote_rue_id:
+            return {"street_info": "Unknown", "default_name": "Address"}
+
+        info = self._geobase.get_street_info(self._selected_cote_rue_id)
+        if not info:
+            return {"street_info": "Unknown", "default_name": "Address"}
+
+        type_voie = info.get("type_voie", "").capitalize()
+        nom_voie = info.get("nom_voie", "")
+        debut = info.get("debut_adresse", "")
+        fin = info.get("fin_adresse", "")
+        cote = info.get("cote", "")
+
+        street_info = f"{type_voie} {nom_voie}"
+        if debut and fin:
+            street_info += f" ({debut}-{fin})"
+        if cote:
+            street_info += f" - {cote}"
+
+        default_name = f"{type_voie} {nom_voie}".strip()
+
+        return {
+            "street_info": street_info,
+            "default_name": default_name,
+        }
 
     async def async_step_confirm_delete(
         self, index: int, user_input: dict[str, Any] | None = None

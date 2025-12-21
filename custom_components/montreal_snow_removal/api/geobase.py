@@ -218,3 +218,187 @@ class GeobaseHandler:
     def street_count(self) -> int:
         """Return number of streets in mapping."""
         return len(self._mapping)
+
+    def search_address(
+        self,
+        street_number: int | None,
+        street_name: str,
+    ) -> list[dict[str, Any]]:
+        """
+        Search geobase for matching addresses.
+
+        Args:
+            street_number: Street number to match (optional)
+            street_name: Street name to search (already normalized)
+
+        Returns:
+            List of matching addresses sorted by relevance:
+            [
+                {
+                    "cote_rue_id": 12345,
+                    "info": {...},
+                    "match_score": 100,
+                    "in_range": True
+                },
+                ...
+            ]
+        """
+        if not self._loaded:
+            _LOGGER.warning("Geobase not loaded yet")
+            return []
+
+        from ..address_parser import AddressParser
+
+        matches = []
+        search_name_normalized = AddressParser.normalize_street_name(street_name)
+
+        for cote_rue_id, info in self._mapping.items():
+            nom_voie = info.get("nom_voie", "")
+            if not nom_voie:
+                continue
+
+            # Normalize geobase street name for comparison
+            nom_voie_normalized = AddressParser.normalize_street_name(nom_voie)
+
+            # Check if search term is in street name
+            if search_name_normalized not in nom_voie_normalized:
+                continue
+
+            # Calculate match score
+            match_score = self._calculate_match_score(
+                search_name_normalized, nom_voie_normalized
+            )
+
+            # Check if street number is in range
+            in_range = False
+            if street_number is not None:
+                in_range = self._is_in_address_range(
+                    street_number,
+                    info.get("debut_adresse"),
+                    info.get("fin_adresse"),
+                )
+
+            matches.append(
+                {
+                    "cote_rue_id": cote_rue_id,
+                    "info": info,
+                    "match_score": match_score,
+                    "in_range": in_range,
+                }
+            )
+
+        # Sort results:
+        # 1. In-range matches first (if street_number provided)
+        # 2. Then by match score (higher is better)
+        # 3. Then by COTE_RUE_ID
+        matches.sort(
+            key=lambda x: (
+                not x["in_range"],  # in_range=True comes first
+                -x["match_score"],  # Higher score first
+                x["cote_rue_id"],  # Lower ID first
+            )
+        )
+
+        # Limit to top 10 results
+        return matches[:10]
+
+    def _calculate_match_score(
+        self, search_name: str, geobase_name: str
+    ) -> int:
+        """
+        Calculate match score (0-100).
+
+        Args:
+            search_name: Normalized search term
+            geobase_name: Normalized geobase street name
+
+        Returns:
+            Match score:
+            - 100: Exact match
+            - 80: Search term is the full geobase name
+            - 60: Geobase name starts with search term
+            - 40: Substring match
+        """
+        if search_name == geobase_name:
+            return 100
+
+        if geobase_name == search_name:
+            return 80
+
+        if geobase_name.startswith(search_name):
+            return 60
+
+        if search_name in geobase_name:
+            return 40
+
+        return 0
+
+    def _is_in_address_range(
+        self,
+        street_number: int,
+        debut: int | str | None,
+        fin: int | str | None,
+    ) -> bool:
+        """
+        Check if street number falls within address range.
+
+        Args:
+            street_number: Street number to check
+            debut: Start of address range
+            fin: End of address range
+
+        Returns:
+            True if street number is in range
+        """
+        if debut is None or fin is None:
+            return False
+
+        try:
+            debut_int = int(debut)
+            fin_int = int(fin)
+            return debut_int <= street_number <= fin_int
+        except (ValueError, TypeError) as err:
+            _LOGGER.debug(
+                "Invalid address range: %s-%s (%s)", debut, fin, err
+            )
+            return False
+
+    @classmethod
+    async def async_create_temporary(cls, session=None) -> GeobaseHandler:
+        """
+        Create temporary geobase handler for config flow.
+
+        Downloads data from public API without local caching.
+
+        Args:
+            session: Optional aiohttp session to use
+
+        Returns:
+            Loaded GeobaseHandler instance
+        """
+        from pathlib import Path
+        import aiohttp
+
+        from .public_api import PublicAPIClient
+
+        # Create temporary handler (won't use cache file)
+        handler = cls(Path("/tmp"))
+
+        # Download geobase from public API
+        if session is None:
+            async with aiohttp.ClientSession() as temp_session:
+                client = PublicAPIClient(temp_session)
+                geobase_data = await client.async_get_geobase_mapping()
+        else:
+            client = PublicAPIClient(session)
+            geobase_data = await client.async_get_geobase_mapping()
+
+        # Convert string keys to int
+        handler._mapping = {int(k): v for k, v in geobase_data.items()}
+        handler._loaded = True
+
+        _LOGGER.info(
+            "Created temporary geobase with %d streets", len(handler._mapping)
+        )
+
+        return handler

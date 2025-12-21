@@ -9,13 +9,35 @@
           "use_production": "Utiliser l'API de production (décocher pour test)"
         }
       },
-      "address": {
-        "title": "Ajouter une adresse",
-        "description": "Ajoutez une adresse à suivre. Vous suivez actuellement {address_count} adresse(s).",
+      "address_entry": {
+        "title": "Entrer l'adresse",
+        "description": "Entrez votre adresse complète à Montréal pour la rechercher automatiquement. Vous suivez actuellement {address_count} adresse(s).",
+        "data": {
+          "full_address": "Adresse complète (ex: '1234 rue Exemple')",
+          "use_manual_entry": "Saisie manuelle (avancé)"
+        }
+      },
+      "address_manual": {
+        "title": "Ajouter une adresse manuellement",
+        "description": "Entrez le COTE_RUE_ID directement. Vous suivez actuellement {address_count} adresse(s).",
         "data": {
           "name": "Nom (ex: Maison, Travail)",
           "address": "Adresse complète (optionnel, pour référence seulement)",
           "cote_rue_id": "COTE_RUE_ID (Identifiant du côté de rue)"
+        }
+      },
+      "address_select": {
+        "title": "Sélectionner le côté de rue",
+        "description": "Plusieurs correspondances trouvées. Sélectionnez le bon côté de rue:",
+        "data": {
+          "selected_cote_rue_id": "Côté de rue"
+        }
+      },
+      "address_confirm": {
+        "title": "Confirmer l'adresse",
+        "description": "Confirmez l'adresse sélectionnée:\n{street_info}",
+        "data": {
+          "name": "Nom pour cette adresse"
         }
       },
       "add_another": {
@@ -32,7 +54,11 @@
       "unknown": "Une erreur inattendue s'est produite. Veuillez réessayer.",
       "name_required": "Le nom est requis",
       "cote_rue_id_required": "Le COTE_RUE_ID est requis",
-      "invalid_cote_rue_id": "Le COTE_RUE_ID doit être un nombre"
+      "invalid_cote_rue_id": "Le COTE_RUE_ID doit être un nombre",
+      "address_not_found": "Aucune rue correspondante trouvée. Veuillez vérifier l'adresse ou utiliser la saisie manuelle.",
+      "invalid_address_format": "Veuillez entrer une adresse valide avec numéro et nom de rue.",
+      "geobase_unavailable": "Impossible de charger la base de données des rues. Veuillez réessayer ou utiliser la saisie manuelle.",
+      "timeout": "Délai d'attente dépassé. Veuillez vérifier votre connexion et réessayer."
     },
     "abort": {
       "already_configured": "Cette intégration est déjà configurée",
@@ -64,11 +90,33 @@
       },
       "add_address": {
         "title": "Ajouter une nouvelle adresse",
-        "description": "Ajouter une nouvelle adresse à suivre",
+        "description": "Entrez votre adresse complète pour la rechercher automatiquement",
+        "data": {
+          "full_address": "Adresse complète (ex: '1234 rue Exemple')",
+          "use_manual_entry": "Saisie manuelle (avancé)"
+        }
+      },
+      "add_address_manual": {
+        "title": "Ajouter une adresse manuellement",
+        "description": "Entrez le COTE_RUE_ID directement",
         "data": {
           "name": "Nom (ex: Maison, Travail)",
           "address": "Adresse complète (optionnel, pour référence seulement)",
           "cote_rue_id": "COTE_RUE_ID (Identifiant du côté de rue)"
+        }
+      },
+      "add_address_select": {
+        "title": "Sélectionner le côté de rue",
+        "description": "Plusieurs correspondances trouvées. Sélectionnez le bon côté de rue:",
+        "data": {
+          "selected_cote_rue_id": "Côté de rue"
+        }
+      },
+      "add_address_confirm": {
+        "title": "Confirmer l'adresse",
+        "description": "Confirmez l'adresse sélectionnée:\n{street_info}",
+        "data": {
+          "name": "Nom pour cette adresse"
         }
       },
       "confirm_delete": {

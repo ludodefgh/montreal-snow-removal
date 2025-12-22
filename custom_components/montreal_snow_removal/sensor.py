@@ -96,8 +96,8 @@ class SnowRemovalSensor(CoordinatorEntity, SensorEntity):
         self._attr_device_info = {
             "identifiers": {(DOMAIN, f"{entry_id}_{cote_rue_id}")},
             "name": f"Snow Removal - {name}",
-            "manufacturer": "Ville de Montréal",
-            "model": "Planif-Neige",
+            "manufacturer": "ludodefgh",
+            "model": "Data from Ville de Montréal",
         }
 
     @property

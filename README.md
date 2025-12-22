@@ -298,12 +298,6 @@ Contributions are welcome! Please:
 - ✅ Config Flow UI
 - ✅ French/English support
 
-### Future Versions
-- 🔲 Visual map of streets being cleared
-- 🔲 Integration with free parking during snow removal
-- 🔲 Snow removal history tracking
-- 🔲 Predictive ML for probable dates
-
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

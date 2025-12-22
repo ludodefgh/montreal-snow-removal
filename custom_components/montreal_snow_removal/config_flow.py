@@ -40,6 +40,10 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle the initial step - go directly to address entry."""
+        # Check if already configured
+        await self.async_set_unique_id(DOMAIN)
+        self._abort_if_unique_id_configured()
+
         # No API token needed anymore - using public API!
         # Go directly to address entry (automatic search)
         return await self.async_step_address_entry()
@@ -380,11 +384,6 @@ class MontrealSnowRemovalConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Should not happen, but fallback to address step
             return self.async_abort(reason="no_addresses")
 
-        # Create unique ID from first address COTE_RUE_ID
-        unique_id = f"montreal_snow_removal_{self._addresses[0][CONF_COTE_RUE_ID]}"
-        await self.async_set_unique_id(unique_id)
-        self._abort_if_unique_id_configured()
-
         return self.async_create_entry(
             title=f"Montreal Snow Removal ({len(self._addresses)} address(es))",
             data={
@@ -411,6 +410,7 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
         self._search_results: list[dict] = []
         self._current_address_search: str = ""
         self._selected_cote_rue_id: int | None = None
+        self._delete_index: int = 0
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -479,8 +479,8 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_add_address()
             elif action.startswith("delete_"):
                 # Extract index from action (e.g., "delete_0")
-                index = int(action.split("_")[1])
-                return await self.async_step_confirm_delete(index)
+                self._delete_index = int(action.split("_")[1])
+                return await self.async_step_confirm_delete()
             return await self.async_step_init()
 
         # Get current addresses
@@ -580,6 +580,9 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                         data=new_data,
                         title=f"Montreal Snow Removal ({len(self._addresses)} address(es))",
                     )
+
+                    # Reload the integration to create the new entities
+                    await self.hass.config_entries.async_reload(self.config_entry.entry_id)
 
                     return self.async_create_entry(title="", data=self.config_entry.options)
 
@@ -764,6 +767,9 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                 title=f"Montreal Snow Removal ({len(self._addresses)} address(es))",
             )
 
+            # Reload the integration to create the new entities
+            await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+
             return self.async_create_entry(title="", data=self.config_entry.options)
 
         # Get street info for display
@@ -820,17 +826,47 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
         }
 
     async def async_step_confirm_delete(
-        self, index: int, user_input: dict[str, Any] | None = None
+        self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Confirm deletion of an address."""
         current_addresses = list(self.config_entry.data.get(CONF_ADDRESSES, []))
+        index = self._delete_index
 
         if index >= len(current_addresses):
             return await self.async_step_manage_addresses()
 
         if user_input is not None:
             if user_input.get("confirm"):
-                # Remove the address
+                # Get the address being deleted to remove its entities
+                addr_to_delete = current_addresses[index]
+                cote_rue_id = addr_to_delete.get(CONF_COTE_RUE_ID)
+
+                # Remove entities and device from registries BEFORE updating config
+                from homeassistant.helpers import entity_registry as er, device_registry as dr
+                entity_reg = er.async_get(self.hass)
+                device_reg = dr.async_get(self.hass)
+
+                # Build unique IDs for entities to remove
+                sensor_unique_id = f"{DOMAIN}_{cote_rue_id}"
+                binary_sensor_unique_id = f"{DOMAIN}_parking_ban_{cote_rue_id}"
+
+                # Remove entities by finding them in the registry
+                entities_to_remove = [
+                    entity.entity_id
+                    for entity in entity_reg.entities.values()
+                    if entity.unique_id in [sensor_unique_id, binary_sensor_unique_id]
+                ]
+
+                for entity_id in entities_to_remove:
+                    entity_reg.async_remove(entity_id)
+
+                # Remove the associated device
+                device_identifier = (DOMAIN, f"{self.config_entry.entry_id}_{cote_rue_id}")
+                device = device_reg.async_get_device(identifiers={device_identifier})
+                if device:
+                    device_reg.async_remove_device(device.id)
+
+                # Now remove the address from config
                 current_addresses.pop(index)
 
                 # Update config entry
@@ -842,6 +878,9 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                     data=new_data,
                     title=f"Montreal Snow Removal ({len(current_addresses)} address(es))",
                 )
+
+                # Reload the integration
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
 
                 return self.async_create_entry(title="", data=self.config_entry.options)
 

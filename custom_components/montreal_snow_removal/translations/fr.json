@@ -62,7 +62,8 @@
     },
     "abort": {
       "already_configured": "Cette intégration est déjà configurée",
-      "no_addresses": "Au moins une adresse doit être configurée"
+      "no_addresses": "Au moins une adresse doit être configurée",
+      "address_deleted": "Adresse supprimée avec succès"
     }
   },
   "options": {

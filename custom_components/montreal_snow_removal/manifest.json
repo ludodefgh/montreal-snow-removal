@@ -5,6 +5,7 @@
   "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/ludodefgh/montreal-snow-removal",
+  "icon": "mdi:snowplow",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ludodefgh/montreal-snow-removal/issues",
   "requirements": ["aiohttp>=3.8.0"],

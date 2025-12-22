@@ -272,13 +272,24 @@ Contributions are welcome! Please:
 
 ### Version 2.1.0 (Current) 🎉
 
+**Bug Fixes:**
+- 🐛 Fixed address deletion error (TypeError in config flow)
+- 🐛 Proper cleanup of entities and devices when deleting addresses
+- 🐛 Fixed orphaned entities remaining after address removal
+
+**Improvements:**
+- ✨ Added integration icon (snowplow) in HA integrations list
+- ✨ Single instance enforcement - prevents duplicate integration entries
+- ✨ Updated device manufacturer info to "ludodefgh"
+- ✨ Added translations for address deletion confirmation (EN/FR)
+
+### Version 2.0.0
+
 **New Features:**
 - ✨ **Automatic address search** - Just enter your address, no need to find COTE_RUE_ID!
 - ✨ **Smart street matching** - Handles accents, abbreviations, and multiple results
 - ✨ **Address management** - Add/delete addresses through options menu
 - ✨ **Manual fallback** - Advanced option to enter COTE_RUE_ID directly
-
-### Version 2.0.0
 
 **Major Changes:**
 - ✅ **No API token required!** - Now uses public API

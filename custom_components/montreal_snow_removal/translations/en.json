@@ -141,11 +141,21 @@
           "en_cours": "In progress",
           "degage": "Clear"
         }
+      },
+      "next_operation": {
+        "name": "Next Operation"
+      },
+      "last_update": {
+        "name": "Last Update"
       }
     },
     "binary_sensor": {
       "parking_ban": {
-        "name": "Parking Ban"
+        "name": "Parking",
+        "state": {
+          "on": "Banned",
+          "off": "Allowed"
+        }
       }
     }
   }

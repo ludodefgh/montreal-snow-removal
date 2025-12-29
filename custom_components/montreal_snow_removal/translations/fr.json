@@ -141,11 +141,21 @@
           "en_cours": "En cours",
           "degage": "Dégagé"
         }
+      },
+      "next_operation": {
+        "name": "Prochaine opération"
+      },
+      "last_update": {
+        "name": "Dernière mise à jour"
       }
     },
     "binary_sensor": {
       "parking_ban": {
-        "name": "Interdiction de stationnement"
+        "name": "Stationnement",
+        "state": {
+          "on": "Interdit",
+          "off": "Permis"
+        }
       }
     }
   }

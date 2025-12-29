@@ -5,10 +5,7 @@ from datetime import datetime
 import logging
 from typing import Any
 
-from homeassistant.components.binary_sensor import (
-    BinarySensorDeviceClass,
-    BinarySensorEntity,
-)
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -61,7 +58,7 @@ class ParkingBanSensor(CoordinatorEntity, BinarySensorEntity):
     """Binary sensor for parking ban status."""
 
     _attr_has_entity_name = True
-    _attr_device_class = BinarySensorDeviceClass.PROBLEM
+    _attr_translation_key = "parking_ban"
 
     def __init__(
         self,
@@ -86,7 +83,7 @@ class ParkingBanSensor(CoordinatorEntity, BinarySensorEntity):
 
         # Entity IDs and unique ID
         self._attr_unique_id = f"{DOMAIN}_parking_ban_{cote_rue_id}"
-        self._attr_name = f"Parking Ban {name}"
+        self._attr_name = f"Parking {name}"
 
         # Device info for grouping (same device as main sensor)
         self._attr_device_info = {
@@ -141,6 +138,7 @@ class ParkingBanSensor(CoordinatorEntity, BinarySensorEntity):
                 return self._is_within_period(now, date_deb, date_fin)
 
         return False
+
 
     def _is_within_period(
         self, now: datetime, start: datetime, end: datetime

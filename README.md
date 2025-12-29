@@ -270,7 +270,29 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.1.0 (Current) 🎉
+### Version 2.1.1 (Current) 🎉
+
+**New Features:**
+- ✨ **Next Operation sensor** - Shows time until next snow removal operation
+  - Displays "En cours" when operation is active (GPS tracking or within scheduled period)
+  - Shows countdown in hours/days format (e.g., "2h", "1j 5h")
+  - Visible directly in main sensor list for quick status checks
+- ✨ **Last Update sensor** - Shows when data was last updated from the city's API
+  - Timestamp sensor with proper Montreal timezone
+  - Helps you know if the data is current
+
+**Improvements:**
+- 🎨 Improved parking ban sensor display
+  - Changed from "Problem" device class to custom translated states
+  - Renamed from "Parking Ban" to "Parking" for better UX
+  - Clearer states: "Interdit"/"Permis" (FR), "Banned"/"Allowed" (EN)
+
+**User Experience:**
+- 📊 All critical information now visible in main sensor list
+- 🚀 No need to click through multiple screens to check snow removal status
+- 🌐 Full bilingual support (EN/FR) for all new features
+
+### Version 2.1.0
 
 **Bug Fixes:**
 - 🐛 Fixed address deletion error (TypeError in config flow)

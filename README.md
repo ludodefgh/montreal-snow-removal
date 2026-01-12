@@ -8,10 +8,12 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 ## Features
 
 - **Real-time tracking** of snow removal status for your streets
+- **Visual map display** 🗺️ - See your streets on a map with color-coded markers
 - **Parking ban alerts** - know when you can't park on your street
 - **Multiple addresses** - track home, work, or any location in Montreal
 - **Bilingual support** - Full French and English translations
 - **Rich attributes** - Street names, dates, hours until snow removal starts
+- **GPS coordinates** - Automatic location mapping for each tracked street
 
 ## Installation
 
@@ -116,6 +118,97 @@ Indicates if parking is currently banned.
 **Attributes:**
 - `debut_interdiction` - Ban start date/time
 - `fin_interdiction` - Ban end date/time
+
+### Device Tracker: `device_tracker.map_[name]` 🗺️
+
+**NEW!** Visual map marker for each tracked street.
+
+Displays your tracked streets on the Home Assistant map with color-coded markers based on snow removal status.
+
+**Marker Colors:**
+- 🔴 **Red** - Planned (déneigement planifié)
+- 🟡 **Yellow** - In Progress (en cours)
+- 🟢 **Green** - Completed (déneigé)
+- ⚪ **Gray** - Clear conditions (dégagé)
+- 🟠 **Orange** - Rescheduled (replanifié)
+- 🔵 **Blue** - Snowy/Not planned (enneigé)
+
+**Note:** Device tracker entities are automatically created when GeoJSON geometry data is successfully loaded. If coordinates are not available for a street, no tracker will be created.
+
+## Visual Map Display 🗺️
+
+The integration can display your tracked streets on a map in **two ways**:
+
+### Option 1: Native Map (Simple Markers)
+
+Display streets as point markers on Home Assistant's native map.
+
+**Setup:**
+1. Go to your **Dashboard**
+2. Click **Edit Dashboard**
+3. Click **+ Add Card**
+4. Select **Map** card
+5. Add your `device_tracker.map_*` entities
+
+**YAML configuration:**
+```yaml
+type: map
+entities:
+  - entity: device_tracker.map_home
+  - entity: device_tracker.map_work
+default_zoom: 15
+hours_to_show: 0
+```
+
+### Option 2: Custom Card (Full Street Segments) ⭐ **Recommended**
+
+Display complete street segments as colored lines on the map based on snow removal status!
+
+**Preview:**
+- 🔴 Red lines = Planned snow removal
+- 🟡 Yellow lines = In progress
+- 🟢 Green lines = Completed
+- 🟠 Orange lines = Rescheduled
+- ⚪ Gray lines = Clear conditions
+- 🔵 Blue lines = Snowy/Not planned
+
+**Installation:**
+1. Copy `www/montreal-snow-removal-map-card.js` to your `config/www/` folder
+2. Add resource in **Settings** → **Dashboards** → **Resources**:
+   - URL: `/local/montreal-snow-removal-map-card.js`
+   - Type: JavaScript Module
+3. Restart Home Assistant
+4. Add card to dashboard:
+
+```yaml
+type: custom:montreal-snow-removal-map-card
+title: Déneigement Montréal
+entities:
+  - device_tracker.map_home
+  - device_tracker.map_work
+zoom: 15
+dark_mode: true
+```
+
+**Full installation guide:** See [CUSTOM_CARD_INSTALLATION.md](CUSTOM_CARD_INSTALLATION.md)
+
+### How It Works
+
+On first setup, the integration downloads Montreal's GeoJSON street geometry data (~75 MB) from the [City's Open Data portal](https://donnees.montreal.ca/dataset/geobase-double). This data contains:
+- Precise GPS coordinates for every street in Montreal
+- Complete street segment geometries (LineString data)
+
+The data is cached locally at `config/montreal_snow_removal/geobase_geometry.json`, so it only needs to be downloaded once.
+
+### Troubleshooting Map Display
+
+**Map markers/segments not appearing:**
+- Check Home Assistant logs for GeoJSON download errors
+- Verify the integration successfully loaded: Look for "GeoJSON loaded with X geometries" in logs
+- If download failed, delete the cache file at `config/montreal_snow_removal/geobase_geometry.json` and restart
+
+**For custom card issues:**
+- See detailed troubleshooting in [CUSTOM_CARD_INSTALLATION.md](CUSTOM_CARD_INSTALLATION.md)
 
 ## Automation Examples
 

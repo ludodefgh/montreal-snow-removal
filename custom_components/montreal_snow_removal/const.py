@@ -88,7 +88,7 @@ CONF_COTE_RUE_ID: Final = "cote_rue_id"
 CONF_USE_PRODUCTION: Final = "use_production"
 
 # Platforms
-PLATFORMS: Final = ["sensor", "binary_sensor"]
+PLATFORMS: Final = ["sensor", "binary_sensor", "device_tracker"]
 
 # Attributes
 ATTR_COTE_RUE_ID: Final = "cote_rue_id"

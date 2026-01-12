@@ -16,6 +16,7 @@ from .api.public_api import (
     PublicAPIError,
 )
 from .api.geobase import GeobaseHandler
+from .api.geojson_handler import GeoJSONHandler
 from .const import (
     DOMAIN,
     MIN_SCAN_INTERVAL,
@@ -33,6 +34,7 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
         hass: HomeAssistant,
         api_client: PublicAPIClient,
         geobase: GeobaseHandler,
+        geojson_handler: GeoJSONHandler,
         update_interval: int,
         tracked_cote_rue_ids: list[int],
     ) -> None:
@@ -42,6 +44,7 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
             hass: Home Assistant instance
             api_client: Public API client
             geobase: Geobase handler for street name mapping
+            geojson_handler: GeoJSON handler for street geometry
             update_interval: Update interval in seconds (min 300)
             tracked_cote_rue_ids: List of COTE_RUE_ID to track
         """
@@ -56,6 +59,7 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
 
         self.api_client = api_client
         self.geobase = geobase
+        self.geojson_handler = geojson_handler
         self.tracked_cote_rue_ids = set(tracked_cote_rue_ids)
         self.last_update_time: datetime | None = None
 
@@ -125,6 +129,13 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
                         "cote": street_info.get("cote"),
                         "nom_ville": street_info.get("nom_ville"),
                     })
+
+                # Add GPS coordinates if available from GeoJSON
+                if self.geojson_handler.is_loaded:
+                    coords = self.geojson_handler.get_center_coordinates(cote_rue_id)
+                    if coords:
+                        street_data["latitude"] = coords[0]
+                        street_data["longitude"] = coords[1]
 
                 # Calculate hours before start (if planned)
                 if planif.get("date_deb_planif"):

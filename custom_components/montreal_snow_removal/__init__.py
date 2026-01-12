@@ -12,6 +12,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 import aiohttp
 
 from .api.geobase import GeobaseError, GeobaseHandler
+from .api.geojson_handler import GeoJSONHandler, GeoJSONError
 from .api.public_api import PublicAPIClient
 from .const import (
     CONF_ADDRESSES,
@@ -23,7 +24,7 @@ from .coordinator import SnowRemovalCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER]
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -59,6 +60,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         _LOGGER.error("Failed to load geobase from public API: %s", err)
         raise ConfigEntryNotReady(f"Failed to load geobase: {err}") from err
 
+    # Initialize GeoJSON handler for street geometry
+    geojson_handler = GeoJSONHandler(data_dir)
+    try:
+        await geojson_handler.async_load()
+        _LOGGER.info("GeoJSON loaded with %d geometries", geojson_handler.geometry_count)
+    except GeoJSONError as err:
+        # GeoJSON is optional - log warning but don't fail setup
+        _LOGGER.warning("Failed to load GeoJSON (map features will be unavailable): %s", err)
+
     # Get scan interval from options or use default
     scan_interval = entry.options.get("scan_interval", DEFAULT_SCAN_INTERVAL)
 
@@ -67,6 +77,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         hass,
         api_client,
         geobase,
+        geojson_handler,
         scan_interval,
         tracked_cote_rue_ids,
     )
@@ -80,6 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "coordinator": coordinator,
         "api_client": api_client,
         "geobase": geobase,
+        "geojson_handler": geojson_handler,
         "addresses": addresses,
         "session": session,  # Store session for cleanup
     }

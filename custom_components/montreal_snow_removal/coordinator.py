@@ -207,6 +207,17 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
         """
         return self._street_data.get(cote_rue_id)
 
+    def _map_etat_deneig(self, etat_value: int) -> str:
+        """Map ETAT_DENEIG numeric value to state string.
+
+        Args:
+            etat_value: Numeric state value from API
+
+        Returns:
+            State string constant
+        """
+        return STATE_MAP.get(etat_value, "enneige")
+
     def add_tracked_street(self, cote_rue_id: int) -> None:
         """Add a street to track.
 

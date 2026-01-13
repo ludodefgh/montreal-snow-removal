@@ -1,0 +1,52 @@
+# Services for Montreal Snow Removal integration
+
+get_streets_in_viewport:
+  name: Get streets in viewport
+  description: Retrieve snow removal status for streets within a geographic viewport (used by map card).
+  fields:
+    north:
+      name: North latitude
+      description: Northern boundary of the viewport
+      required: true
+      example: 45.52
+      selector:
+        number:
+          min: -90
+          max: 90
+    south:
+      name: South latitude
+      description: Southern boundary of the viewport
+      required: true
+      example: 45.50
+      selector:
+        number:
+          min: -90
+          max: 90
+    east:
+      name: East longitude
+      description: Eastern boundary of the viewport
+      required: true
+      example: -73.55
+      selector:
+        number:
+          min: -180
+          max: 180
+    west:
+      name: West longitude
+      description: Western boundary of the viewport
+      required: true
+      example: -73.60
+      selector:
+        number:
+          min: -180
+          max: 180
+    max_results:
+      name: Maximum results
+      description: Maximum number of streets to return
+      required: false
+      default: 100
+      example: 100
+      selector:
+        number:
+          min: 1
+          max: 10000

@@ -164,6 +164,8 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
             south: Southern latitude boundary
             east: Eastern longitude boundary
             west: Western longitude boundary
+            center_lat: Center latitude for distance sorting (optional)
+            center_lng: Center longitude for distance sorting (optional)
             max_results: Maximum number of streets to return (default: 100)
 
         Returns:
@@ -174,6 +176,8 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
         south = call.data.get("south")
         east = call.data.get("east")
         west = call.data.get("west")
+        center_lat = call.data.get("center_lat")
+        center_lng = call.data.get("center_lng")
         max_results = call.data.get("max_results", 100)
 
         # Validate parameters
@@ -258,15 +262,15 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
             if not geometry:
                 continue
 
-            # Get center coordinates
-            center_lat = geometry.get("center_latitude")
-            center_lon = geometry.get("center_longitude")
+            # Get center coordinates of the street
+            street_center_lat = geometry.get("center_latitude")
+            street_center_lon = geometry.get("center_longitude")
 
-            if center_lat is None or center_lon is None:
+            if street_center_lat is None or street_center_lon is None:
                 continue
 
-            # Check if center is within viewport
-            if not (south <= center_lat <= north and west <= center_lon <= east):
+            # Check if street center is within viewport
+            if not (south <= street_center_lat <= north and west <= street_center_lon <= east):
                 continue
 
             # Get street info from geobase
@@ -278,8 +282,8 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
             street_data = {
                 "cote_rue_id": cote_rue_id_int,
                 "coordinates": [[coord[1], coord[0]] for coord in coordinates],  # Flip to [lat, lon]
-                "center_latitude": center_lat,
-                "center_longitude": center_lon,
+                "center_latitude": street_center_lat,
+                "center_longitude": street_center_lon,
                 "state": coordinator._map_etat_deneig(planif.get("etat_deneig", 0)),
                 "street_name": f"{street_info.get('type_voie', '')} {street_info.get('nom_voie', '')}".strip(),
                 "street_side": street_info.get("cote", ""),
@@ -297,11 +301,41 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
 
             streets_in_viewport.append(street_data)
 
-            # Limit results to avoid overwhelming the frontend
-            if len(streets_in_viewport) >= max_results:
-                break
+        # Sort streets by distance to center if center coordinates provided
+        if center_lat is not None and center_lng is not None:
+            import math
 
-        _LOGGER.debug("Found %d streets in viewport (max: %d)", len(streets_in_viewport), max_results)
+            def calculate_distance(street):
+                """Calculate minimum distance from any point of street to center."""
+                coords = street.get("coordinates", [])
+                if not coords:
+                    return float('inf')
+
+                min_dist = float('inf')
+                for coord in coords:
+                    # Haversine formula for distance calculation
+                    lat1, lon1 = math.radians(center_lat), math.radians(center_lng)
+                    lat2, lon2 = math.radians(coord[0]), math.radians(coord[1])
+
+                    dlat = lat2 - lat1
+                    dlon = lon2 - lon1
+
+                    a = math.sin(dlat/2)**2 + math.cos(lat1) * math.cos(lat2) * math.sin(dlon/2)**2
+                    c = 2 * math.asin(math.sqrt(a))
+                    distance = 6371 * c  # Earth radius in km
+
+                    min_dist = min(min_dist, distance)
+
+                return min_dist
+
+            streets_in_viewport.sort(key=calculate_distance)
+            _LOGGER.debug("Sorted %d streets by distance to center (%.6f, %.6f)",
+                         len(streets_in_viewport), center_lat, center_lng)
+
+        # Limit results after sorting
+        streets_in_viewport = streets_in_viewport[:max_results]
+
+        _LOGGER.debug("Returning %d streets in viewport (max: %d)", len(streets_in_viewport), max_results)
 
         return {"streets": streets_in_viewport}
 

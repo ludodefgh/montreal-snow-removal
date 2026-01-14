@@ -40,6 +40,24 @@ get_streets_in_viewport:
         number:
           min: -180
           max: 180
+    center_lat:
+      name: Center latitude
+      description: Center latitude for distance-based sorting (optional)
+      required: false
+      example: 45.51
+      selector:
+        number:
+          min: -90
+          max: 90
+    center_lng:
+      name: Center longitude
+      description: Center longitude for distance-based sorting (optional)
+      required: false
+      example: -73.57
+      selector:
+        number:
+          min: -180
+          max: 180
     max_results:
       name: Maximum results
       description: Maximum number of streets to return

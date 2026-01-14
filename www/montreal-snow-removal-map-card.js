@@ -31,6 +31,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     this._currentZoom = 15;
     this._loadingNeighborhood = false;
     this._neighborhoodCache = new Map(); // Cache viewport queries
+    this._centerMarker = null; // Debug marker for viewport center
   }
 
   setConfig(config) {
@@ -43,10 +44,12 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       zoom: config.zoom || 15,
       center: config.center || null,
       dark_mode: config.dark_mode !== false,
+      height: config.height || 600, // Map height in pixels
       // New options
       show_all_streets: config.show_all_streets !== false, // Show neighborhood streets by default
       zoom_threshold: config.zoom_threshold || 14, // Zoom level to show all streets
       max_neighborhood_streets: config.max_neighborhood_streets || 100, // Max streets to load
+      debug_center: config.debug_center || false, // Show center marker for debugging
     };
   }
 
@@ -124,9 +127,13 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       <style>
         :host {
           display: block;
+          position: relative;
+          z-index: 0;
         }
         ha-card {
           overflow: hidden;
+          position: relative;
+          z-index: 0;
         }
         .card-header {
           padding: 16px;
@@ -135,8 +142,10 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         }
         #map {
           width: 100%;
-          height: 400px;
+          height: ${this._config.height}px;
+          min-height: 400px;
           position: relative;
+          z-index: 0;
         }
         .legend {
           position: absolute;
@@ -147,7 +156,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
           padding: 10px;
           border-radius: 4px;
           box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-          z-index: 1000;
+          z-index: 400;
           font-size: 12px;
         }
         .legend-item {
@@ -189,28 +198,32 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         <div id="map"></div>
         <div class="legend">
           <div class="legend-item">
-            <div class="legend-color" style="background-color: red;"></div>
-            <span>Planifié</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: yellow;"></div>
-            <span>En cours</span>
+            <div class="legend-color" style="background-color: blue;"></div>
+            <span>Enneigé</span>
           </div>
           <div class="legend-item">
             <div class="legend-color" style="background-color: green;"></div>
-            <span>Terminé</span>
+            <span>Déneigé</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: red;"></div>
+            <span>Stationnement interdit</span>
           </div>
           <div class="legend-item">
             <div class="legend-color" style="background-color: orange;"></div>
-            <span>Replanifié</span>
+            <span>Chargement planifié</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: yellow;"></div>
+            <span>Chargement reporté</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background-color: purple;"></div>
+            <span>Chargement en cours</span>
           </div>
           <div class="legend-item">
             <div class="legend-color" style="background-color: gray;"></div>
-            <span>Dégagé</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: blue;"></div>
-            <span>Enneigé</span>
+            <span>Aucune opération</span>
           </div>
           <div class="legend-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};">
             <span style="font-weight: bold;">★</span>
@@ -365,7 +378,13 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
 
       console.log('Fetching neighborhood streets from service');
 
+      // Get viewport center
+      const center = this._map.getCenter();
+      const centerLat = center.lat;
+      const centerLng = center.lng;
+
       // Call Home Assistant service via WebSocket to get return value
+      // Now includes center coordinates for backend sorting
       const result = await this._hass.callWS({
         type: 'call_service',
         domain: 'montreal_snow_removal',
@@ -375,20 +394,30 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
           south: bounds.getSouth(),
           east: bounds.getEast(),
           west: bounds.getWest(),
+          center_lat: centerLat,
+          center_lng: centerLng,
           max_results: this._config.max_neighborhood_streets,
         },
         return_response: true,
       });
 
       const streets = result?.response?.streets || [];
-      console.log(`Loaded ${streets.length} neighborhood streets`);
+      console.log(`Loaded ${streets.length} neighborhood streets (sorted by backend)`);
+
+      // Update debug center marker if enabled
+      this._updateCenterMarker(centerLat, centerLng);
+
+      // Streets are already sorted by backend, no need to sort again
+      const streetsToDisplay = streets;
+
+      console.log(`Displaying ${streetsToDisplay.length} streets`);
 
       // Clear old neighborhood layers
       this._neighborhoodLayers.forEach(layer => this._map.removeLayer(layer));
       this._neighborhoodLayers.clear();
 
       // Add new street layers
-      streets.forEach(street => {
+      streetsToDisplay.forEach(street => {
         // Skip if this is a tracked street
         if (this._isTrackedStreet(street.cote_rue_id)) {
           return;
@@ -462,20 +491,27 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
 
   _getColorForState(state) {
     const colorMap = {
-      'red': '#FF0000',
-      'yellow': '#FFD700',
-      'green': '#00AA00',
-      'orange': '#FF8C00',
-      'gray': '#808080',
       'blue': '#0066CC',
-      'planifie': '#FF0000',
-      'en_cours': '#FFD700',
-      'deneige': '#00AA00',
-      'replanifie': '#FF8C00',
-      'degage': '#808080',
+      'green': '#00AA00',
+      'red': '#FF0000',
+      'orange': '#FF8C00',
+      'yellow': '#FFD700',
+      'purple': '#9932CC',
+      'gray': '#808080',
       'enneige': '#0066CC',
+      'deneige': '#00AA00',
+      'stationnement_interdit': '#FF0000',
+      'chargement_planifie': '#FF8C00',
+      'chargement_reporte': '#FFD700',
+      'chargement_en_cours': '#9932CC',
+      'aucune_operation': '#808080',
+      // Legacy state support (old names)
+      'planifie': '#FF8C00',
+      'en_cours': '#9932CC',
+      'replanifie': '#FFD700',
+      'degage': '#808080',
     };
-    return colorMap[state] || '#0066CC';
+    return colorMap[state] || '#808080';
   }
 
   _createPopupContent(attributes, isTracked) {
@@ -528,12 +564,18 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
 
   _formatState(state) {
     const stateMap = {
-      'planifie': 'Planifié',
-      'en_cours': 'En cours',
-      'deneige': 'Déneigé',
-      'replanifie': 'Replanifié',
-      'degage': 'Dégagé',
       'enneige': 'Enneigé',
+      'deneige': 'Déneigé',
+      'stationnement_interdit': 'Stationnement interdit',
+      'chargement_planifie': 'Chargement planifié',
+      'chargement_reporte': 'Chargement reporté',
+      'chargement_en_cours': 'Chargement en cours',
+      'aucune_operation': 'Aucune opération',
+      // Legacy state support (old names)
+      'planifie': 'Chargement planifié',
+      'en_cours': 'Chargement en cours',
+      'replanifie': 'Chargement reporté',
+      'degage': 'Aucune opération',
     };
     return stateMap[state] || state;
   }
@@ -550,6 +592,119 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     } catch (e) {
       return isoString;
     }
+  }
+
+  _getMinDistanceToCenter(coordinates, centerLat, centerLng) {
+    // Calculate minimum distance from any point of the street to the viewport center
+    if (!coordinates || coordinates.length === 0) {
+      return Infinity;
+    }
+
+    let minDistance = Infinity;
+
+    // Check every point in the street's coordinates
+    for (const coord of coordinates) {
+      const distance = this._calculateDistance(centerLat, centerLng, coord[0], coord[1]);
+      if (distance < minDistance) {
+        minDistance = distance;
+      }
+    }
+
+    return minDistance;
+  }
+
+  _getStreetCenter(coordinates) {
+    // Calculate the center point of a street from its coordinates
+    if (!coordinates || coordinates.length === 0) {
+      return { lat: 0, lng: 0 };
+    }
+
+    // Find middle coordinate (geometrically simpler than calculating actual midpoint of polyline)
+    const middleIndex = Math.floor(coordinates.length / 2);
+    return {
+      lat: coordinates[middleIndex][0],
+      lng: coordinates[middleIndex][1]
+    };
+  }
+
+  _calculateDistance(lat1, lng1, lat2, lng2) {
+    // Haversine formula to calculate distance between two GPS coordinates
+    // Returns distance in kilometers
+    const R = 6371; // Earth's radius in km
+    const dLat = this._toRadians(lat2 - lat1);
+    const dLng = this._toRadians(lng2 - lng1);
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos(this._toRadians(lat1)) * Math.cos(this._toRadians(lat2)) *
+      Math.sin(dLng / 2) * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return R * c;
+  }
+
+  _toRadians(degrees) {
+    return degrees * (Math.PI / 180);
+  }
+
+  _updateCenterMarker(lat, lng) {
+    if (!this._config.debug_center) {
+      // Remove marker if debug is disabled
+      if (this._centerMarker) {
+        this._map.removeLayer(this._centerMarker);
+        this._centerMarker = null;
+      }
+      return;
+    }
+
+    // Remove existing marker
+    if (this._centerMarker) {
+      this._map.removeLayer(this._centerMarker);
+    }
+
+    // Create custom icon for center marker (red crosshair)
+    const crosshairIcon = L.divIcon({
+      className: 'center-marker',
+      html: `<div style="
+        width: 40px;
+        height: 40px;
+        position: relative;
+      ">
+        <div style="
+          position: absolute;
+          width: 2px;
+          height: 40px;
+          background-color: red;
+          left: 19px;
+          top: 0;
+        "></div>
+        <div style="
+          position: absolute;
+          width: 40px;
+          height: 2px;
+          background-color: red;
+          left: 0;
+          top: 19px;
+        "></div>
+        <div style="
+          position: absolute;
+          width: 12px;
+          height: 12px;
+          border: 2px solid red;
+          border-radius: 50%;
+          left: 14px;
+          top: 14px;
+          background-color: rgba(255, 0, 0, 0.3);
+        "></div>
+      </div>`,
+      iconSize: [40, 40],
+      iconAnchor: [20, 20]
+    });
+
+    // Add new marker at center
+    this._centerMarker = L.marker([lat, lng], {
+      icon: crosshairIcon,
+      zIndexOffset: 1000
+    });
+    this._centerMarker.addTo(this._map);
   }
 
   getCardSize() {

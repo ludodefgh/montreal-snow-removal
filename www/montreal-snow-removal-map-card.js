@@ -159,6 +159,30 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
           z-index: 400;
           font-size: 12px;
         }
+        .legend-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          cursor: pointer;
+          margin-bottom: 8px;
+          padding-bottom: 4px;
+          border-bottom: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};
+        }
+        .legend-title {
+          font-weight: bold;
+          font-size: 13px;
+        }
+        .legend-toggle {
+          font-size: 16px;
+          line-height: 1;
+          user-select: none;
+        }
+        .legend-content {
+          display: block;
+        }
+        .legend-content.collapsed {
+          display: none;
+        }
         .legend-item {
           display: flex;
           align-items: center;
@@ -197,37 +221,43 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         ${this._config.title ? `<div class="card-header">${this._config.title}</div>` : ''}
         <div id="map"></div>
         <div class="legend">
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: blue;"></div>
-            <span>Enneigé</span>
+          <div class="legend-header" id="legend-header">
+            <span class="legend-title">Légende</span>
+            <span class="legend-toggle">▼</span>
           </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: green;"></div>
-            <span>Déneigé</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: red;"></div>
-            <span>Stationnement interdit</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: orange;"></div>
-            <span>Chargement planifié</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: yellow;"></div>
-            <span>Chargement reporté</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: purple;"></div>
-            <span>Chargement en cours</span>
-          </div>
-          <div class="legend-item">
-            <div class="legend-color" style="background-color: gray;"></div>
-            <span>Aucune opération</span>
-          </div>
-          <div class="legend-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};">
-            <span style="font-weight: bold;">★</span>
-            <span style="margin-left: 4px;">Rue suivie</span>
+          <div class="legend-content" id="legend-content">
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: blue;"></div>
+              <span>Enneigé</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: green;"></div>
+              <span>Déneigé</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: red;"></div>
+              <span>Stationnement interdit</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: orange;"></div>
+              <span>Chargement planifié</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: yellow;"></div>
+              <span>Chargement reporté</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: purple;"></div>
+              <span>Chargement en cours</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: gray;"></div>
+              <span>Aucune opération</span>
+            </div>
+            <div class="legend-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};">
+              <span style="font-weight: bold;">★</span>
+              <span style="margin-left: 4px;">Rue suivie</span>
+            </div>
           </div>
         </div>
       </ha-card>
@@ -235,6 +265,16 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
 
     const mapElement = this.shadowRoot.getElementById('map');
     await new Promise(resolve => requestAnimationFrame(resolve));
+
+    // Setup legend toggle
+    const legendHeader = this.shadowRoot.getElementById('legend-header');
+    const legendContent = this.shadowRoot.getElementById('legend-content');
+    const legendToggle = this.shadowRoot.querySelector('.legend-toggle');
+
+    legendHeader.addEventListener('click', () => {
+      const isCollapsed = legendContent.classList.toggle('collapsed');
+      legendToggle.textContent = isCollapsed ? '▶' : '▼';
+    });
 
     // Initialize Leaflet map
     this._map = L.map(mapElement, {
@@ -254,14 +294,15 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       }
     });
 
-    // Add OpenStreetMap tiles
+    // Add map tiles - using CartoDB for better styling
     const tileUrl = this._config.dark_mode
       ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
-      : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
 
     L.tileLayer(tileUrl, {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-      maxZoom: 19,
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>',
+      maxZoom: 20,
+      subdomains: 'abcd',
     }).addTo(this._map);
 
     // Set initial view
@@ -710,9 +751,393 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
   getCardSize() {
     return 4;
   }
+
+  static getConfigElement() {
+    return document.createElement('montreal-snow-removal-map-card-editor');
+  }
+
+  static getStubConfig() {
+    return {
+      entities: [],
+      title: 'Déneigement Montréal',
+      zoom: 15,
+      height: 600,
+      dark_mode: true,
+      show_all_streets: true,
+      zoom_threshold: 14,
+      max_neighborhood_streets: 100,
+      debug_center: false,
+    };
+  }
+}
+
+// Configuration Editor
+class MontrealSnowRemovalMapCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: 'open' });
+    this._config = {};
+    this._hass = null;
+  }
+
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+  }
+
+  _render() {
+    this.shadowRoot.innerHTML = `
+      <style>
+        .card-config {
+          padding: 16px;
+        }
+        .option {
+          display: flex;
+          align-items: center;
+          margin: 12px 0;
+        }
+        .option label {
+          flex: 1;
+          font-weight: 500;
+        }
+        .option input[type="text"],
+        .option input[type="number"] {
+          flex: 2;
+          padding: 8px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: var(--primary-background-color);
+          color: var(--primary-text-color);
+        }
+        .option input[type="checkbox"] {
+          width: 20px;
+          height: 20px;
+        }
+        .section-title {
+          font-weight: bold;
+          margin-top: 16px;
+          margin-bottom: 8px;
+          color: var(--primary-color);
+        }
+        .entity-list {
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          padding: 8px;
+          background: var(--secondary-background-color);
+          margin: 8px 0;
+        }
+        .entity-item {
+          display: flex;
+          align-items: center;
+          margin: 4px 0;
+          padding: 4px;
+          background: var(--primary-background-color);
+          border-radius: 4px;
+        }
+        .entity-item input {
+          flex: 1;
+          margin-right: 8px;
+          padding: 4px 8px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: var(--primary-background-color);
+          color: var(--primary-text-color);
+        }
+        .entity-item button {
+          padding: 4px 8px;
+          background: var(--primary-color);
+          color: var(--text-primary-color);
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .entity-item button:hover {
+          opacity: 0.8;
+        }
+        .add-entity-btn {
+          margin-top: 8px;
+          padding: 8px 16px;
+          background: var(--primary-color);
+          color: var(--text-primary-color);
+          border: none;
+          border-radius: 4px;
+          cursor: pointer;
+        }
+        .add-entity-btn:hover {
+          opacity: 0.8;
+        }
+        .help-text {
+          font-size: 12px;
+          color: var(--secondary-text-color);
+          margin-top: 4px;
+        }
+      </style>
+      <div class="card-config">
+        <div class="section-title">Général</div>
+
+        <div class="option">
+          <label for="title">Titre</label>
+          <input
+            type="text"
+            id="title"
+            value="${this._config.title || ''}"
+            placeholder="Déneigement Montréal"
+          />
+        </div>
+
+        <div class="option">
+          <label for="height">Hauteur (px)</label>
+          <input
+            type="number"
+            id="height"
+            value="${this._config.height || 600}"
+            min="200"
+            max="1200"
+          />
+        </div>
+
+        <div class="section-title">Entités (requis)</div>
+        <div class="entity-list" id="entity-list">
+          ${(this._config.entities || []).map((entity, index) => `
+            <div class="entity-item" data-index="${index}">
+              <input
+                type="text"
+                data-index="${index}"
+                value="${entity}"
+                placeholder="device_tracker.snow_removal_..."
+              />
+              <button data-index="${index}">✕</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="add-entity-btn">+ Ajouter une entité</button>
+        <div class="help-text">Ajoutez les entités device_tracker.snow_removal_* à suivre sur la carte</div>
+
+        <div class="section-title">Centre et Zoom</div>
+
+        <div class="option">
+          <label for="zoom">Zoom initial</label>
+          <input
+            type="number"
+            id="zoom"
+            value="${this._config.zoom || 15}"
+            min="10"
+            max="19"
+          />
+        </div>
+
+        <div class="option">
+          <label for="center">Centre (lat, lng)</label>
+          <input
+            type="text"
+            id="center"
+            value="${this._config.center ? this._config.center.join(', ') : ''}"
+            placeholder="45.5017, -73.5673"
+          />
+        </div>
+        <div class="help-text">Laissez vide pour centrer automatiquement sur vos rues suivies</div>
+
+        <div class="section-title">Apparence</div>
+
+        <div class="option">
+          <label for="dark_mode">Mode sombre</label>
+          <input
+            type="checkbox"
+            id="dark_mode"
+            ${this._config.dark_mode !== false ? 'checked' : ''}
+          />
+        </div>
+
+        <div class="section-title">Rues du quartier</div>
+
+        <div class="option">
+          <label for="show_all_streets">Afficher les rues du quartier</label>
+          <input
+            type="checkbox"
+            id="show_all_streets"
+            ${this._config.show_all_streets !== false ? 'checked' : ''}
+          />
+        </div>
+
+        <div class="option">
+          <label for="zoom_threshold">Zoom minimum pour afficher</label>
+          <input
+            type="number"
+            id="zoom_threshold"
+            value="${this._config.zoom_threshold || 14}"
+            min="10"
+            max="19"
+          />
+        </div>
+
+        <div class="option">
+          <label for="max_neighborhood_streets">Nombre max de rues</label>
+          <input
+            type="number"
+            id="max_neighborhood_streets"
+            value="${this._config.max_neighborhood_streets || 100}"
+            min="10"
+            max="500"
+          />
+        </div>
+
+        <div class="section-title">Débogage</div>
+
+        <div class="option">
+          <label for="debug_center">Afficher le marqueur central</label>
+          <input
+            type="checkbox"
+            id="debug_center"
+            ${this._config.debug_center ? 'checked' : ''}
+          />
+        </div>
+      </div>
+    `;
+
+    // Add event listeners after rendering
+    this.shadowRoot.querySelectorAll('input:not(.entity-item input)').forEach(element => {
+      if (element.id === 'center') {
+        element.addEventListener('blur', this._centerChanged.bind(this));
+        element.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            this._centerChanged(e);
+          }
+        });
+      } else if (element.type === 'number') {
+        // Pour les champs numériques: déclencher uniquement sur blur ou Enter
+        element.addEventListener('blur', this._valueChanged.bind(this));
+        element.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            this._valueChanged(e);
+          }
+        });
+      } else {
+        // Pour les autres champs (texte, checkbox): déclencher immédiatement
+        element.addEventListener('input', this._valueChanged.bind(this));
+        element.addEventListener('change', this._valueChanged.bind(this));
+      }
+    });
+
+    // Entity input listeners - déclencher sur blur ou Enter
+    this.shadowRoot.querySelectorAll('.entity-item input').forEach(element => {
+      element.addEventListener('blur', this._entityChanged.bind(this));
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          this._entityChanged(e);
+        }
+      });
+    });
+
+    // Add entity button
+    this.shadowRoot.querySelector('.add-entity-btn')?.addEventListener('click', this._addEntity.bind(this));
+
+    // Remove entity buttons
+    this.shadowRoot.querySelectorAll('.entity-item button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.target.dataset.index);
+        this._removeEntity(index);
+      });
+    });
+  }
+
+  _valueChanged(ev) {
+    if (!this._config) {
+      return;
+    }
+
+    const target = ev.target;
+    const configValue = target.type === 'checkbox' ? target.checked : target.value;
+
+    let value;
+    if (target.type === 'number') {
+      if (configValue === '') {
+        return;
+      }
+      value = parseFloat(configValue);
+      if (isNaN(value)) {
+        return;
+      }
+    } else {
+      value = configValue;
+    }
+
+    if (this._config[target.id] === value) {
+      return;
+    }
+
+    this._config = {
+      ...this._config,
+      [target.id]: value,
+    };
+
+    this._fireEvent();
+  }
+
+  _centerChanged(ev) {
+    const value = ev.target.value;
+    if (value === '') {
+      this._config = { ...this._config };
+      delete this._config.center;
+    } else {
+      const parts = value.split(',').map(s => parseFloat(s.trim()));
+      if (parts.length === 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+        this._config = {
+          ...this._config,
+          center: parts,
+        };
+      }
+    }
+    this._fireEvent();
+  }
+
+  _entityChanged(ev) {
+    const index = parseInt(ev.target.dataset.index);
+    const entities = [...(this._config.entities || [])];
+    entities[index] = ev.target.value;
+    this._config = {
+      ...this._config,
+      entities,
+    };
+    this._fireEvent();
+  }
+
+  _addEntity() {
+    const entities = [...(this._config.entities || []), ''];
+    this._config = {
+      ...this._config,
+      entities,
+    };
+    this._fireEvent();
+    this._render();
+  }
+
+  _removeEntity(index) {
+    const entities = [...(this._config.entities || [])];
+    entities.splice(index, 1);
+    this._config = {
+      ...this._config,
+      entities,
+    };
+    this._fireEvent();
+    this._render();
+  }
+
+  _fireEvent() {
+    const event = new CustomEvent('config-changed', {
+      detail: { config: this._config },
+      bubbles: true,
+      composed: true,
+    });
+    this.dispatchEvent(event);
+  }
 }
 
 customElements.define('montreal-snow-removal-map-card', MontrealSnowRemovalMapCard);
+customElements.define('montreal-snow-removal-map-card-editor', MontrealSnowRemovalMapCardEditor);
 
 window.customCards = window.customCards || [];
 window.customCards.push({

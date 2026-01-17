@@ -3,7 +3,7 @@
   "name": "Montréal Snow Removal (Planif-Neige)",
   "codeowners": ["@ludodefgh"],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": ["lovelace"],
   "documentation": "https://github.com/ludodefgh/montreal-snow-removal",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/ludodefgh/montreal-snow-removal/issues",

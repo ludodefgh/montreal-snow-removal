@@ -365,7 +365,13 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.2.0 (Current) 🗺️
+### Version 2.2.1 (Current) 🗺️
+
+**Bug Fixes:**
+- 🐛 Fixed translation placeholder quotes for hassfest validation
+- 🐛 Added lovelace dependency to manifest.json
+
+### Version 2.2.0
 
 **New Feature: Interactive Map Card**
 - ✨ **Neighborhood map visualization** - See your streets on an interactive map

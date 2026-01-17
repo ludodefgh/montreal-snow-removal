@@ -365,7 +365,27 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.1.1 (Current) 🎉
+### Version 2.2.0 (Current) 🗺️
+
+**New Feature: Interactive Map Card**
+- ✨ **Neighborhood map visualization** - See your streets on an interactive map
+- ✨ **Color-coded street segments** based on snow removal status:
+  - 🔴 Red: Snow covered (enneigé)
+  - 🟡 Yellow: Planned/Scheduled (planifié)
+  - 🟢 Green: Cleared (déneigé)
+  - 🔵 Blue: In progress (en cours)
+  - ⚫ Gray: Clear/No snow (dégagé)
+- ✨ **Collapsible legend** - Maximize map view when needed
+- ✨ **Smart street prioritization** - Major streets displayed with thicker lines
+- ✨ **HTTP API endpoint** - Card served automatically, no manual file copying
+
+**Usage:**
+```yaml
+type: custom:montreal-snow-removal-map-card
+entity: sensor.your_snow_removal_sensor
+```
+
+### Version 2.1.1
 
 **New Features:**
 - ✨ **Next Operation sensor** - Shows time until next snow removal operation

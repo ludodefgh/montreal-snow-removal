@@ -1,84 +1,64 @@
 # Custom Map Card - Installation Guide
 
-Cette carte personnalisée affiche les **segments de rue complets** (pas juste des points) avec des couleurs selon le statut de déneigement.
+This custom card displays **complete street segments** (not just points) with colors based on snow removal status.
 
-## Résultat attendu
+## Expected Result
 
-Au lieu de voir des marqueurs ponctuels, tu verras les **rues tracées en couleur** sur la carte :
-- 🔴 **Rouge** - Lignes rouges pour les rues avec déneigement planifié
-- 🟡 **Jaune** - Lignes jaunes pour le déneigement en cours
-- 🟢 **Vert** - Lignes vertes pour les rues déneigées
-- 🟠 **Orange** - Lignes oranges pour les rues replanifiées
-- ⚪ **Gris** - Lignes grises pour les conditions dégagées
-- 🔵 **Bleu** - Lignes bleues pour les rues enneigées
+Instead of seeing point markers, you'll see **colored street lines** on the map:
+- 🔴 **Red** - Red lines for streets with planned snow removal
+- 🟡 **Yellow** - Yellow lines for snow removal in progress
+- 🟢 **Green** - Green lines for cleared streets
+- 🟠 **Orange** - Orange lines for rescheduled streets
+- ⚪ **Gray** - Gray lines for clear conditions
+- 🔵 **Blue** - Blue lines for snowy streets
 
 ## Installation
 
-### Étape 1 : Copier le fichier JavaScript
+### Step 1: Add the Resource
 
-Il y a **deux options** :
+The card is **included** with the Montreal Snow Removal integration but you need to register it as a Lovelace resource:
 
-#### Option A : Via le dossier `www` de Home Assistant (Recommandé)
+1. Go to **Settings** → **Dashboards**
+2. Click the menu (3 dots in the top right) → **Resources**
+3. Click **+ Add Resource**
+4. Configure:
+   - **URL**: `/api/montreal_snow_removal/map-card.js`
+   - **Resource type**: JavaScript Module
+5. Click **Create**
+6. **Refresh your browser** (Ctrl+Shift+R or Cmd+Shift+R)
 
-1. Localise ton dossier `config/www/` de Home Assistant
-2. Copie le fichier :
-   ```bash
-   cp www/montreal-snow-removal-map-card.js /path/to/homeassistant/config/www/
-   ```
+### Step 2: Add the Card to Dashboard
 
-#### Option B : Via HACS (si tu publies la carte séparément)
+**First, find the exact name of your entities:**
 
-1. Dans HACS, clique sur "Frontend"
-2. Clique sur le menu (3 points) → "Custom repositories"
-3. Ajoute l'URL de ton repo
-4. Installe "Montreal Snow Removal Map Card"
+1. Go to **Developer Tools** → **States**
+2. Search for `device_tracker`
+3. Note the exact names of your "Map" type entities
+   - Example: `device_tracker.snow_removal_avenue_northcliffe_impair_map_avenue_northcliffe_impair`
 
-### Étape 2 : Ajouter la ressource dans Lovelace
+#### Via the graphical interface:
 
-1. Va dans **Settings** → **Dashboards**
-2. Clique sur le menu (3 points en haut à droite) → **Resources**
-3. Clique sur **+ Add Resource**
-4. Configure :
-   - **URL** : `/local/montreal-snow-removal-map-card.js`
-   - **Resource type** : JavaScript Module
-5. Clique sur **Create**
-
-### Étape 3 : Redémarrer Home Assistant
-
-Redémarre Home Assistant pour charger la nouvelle ressource.
-
-### Étape 4 : Ajouter la carte au Dashboard
-
-**D'abord, trouve le nom exact de tes entités :**
-
-1. Va dans **Developer Tools** → **States**
-2. Cherche `device_tracker`
-3. Note les noms exacts de tes entités de type "Map"
-   - Exemple : `device_tracker.snow_removal_avenue_northcliffe_impair_map_avenue_northcliffe_impair`
-
-#### Via l'interface graphique :
-
-1. Va sur ton Dashboard
-2. Clique sur **Edit Dashboard**
-3. Clique sur **+ Add Card**
-4. Sélectionne **Manual** (carte manuelle)
-5. Colle cette configuration en remplaçant les noms d'entités par les tiens :
+1. Go to your Dashboard
+2. Click **Edit Dashboard**
+3. Click **+ Add Card**
+4. Select **Manual** (manual card)
+5. Paste this configuration, replacing the entity names with yours:
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
-title: Déneigement Montréal
+title: Montreal Snow Removal
 entities:
-  - device_tracker.REMPLACER_PAR_TON_ENTITE_1
-  - device_tracker.REMPLACER_PAR_TON_ENTITE_2
+  - device_tracker.REPLACE_WITH_YOUR_ENTITY_1
+  - device_tracker.REPLACE_WITH_YOUR_ENTITY_2
 zoom: 15
 dark_mode: true
 ```
 
-#### Via YAML (exemple) :
+#### Via YAML (example):
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
-title: Déneigement Montréal
+title: Montreal Snow Removal
 entities:
   - device_tracker.snow_removal_avenue_northcliffe_impair_map_avenue_northcliffe_impair
   - device_tracker.snow_removal_avenue_northcliffe_pair_map_avenue_northcliffe_pair
@@ -88,19 +68,19 @@ dark_mode: true
 
 ## Configuration
 
-### Options disponibles
+### Available Options
 
-| Option | Type | Défaut | Description |
-|--------|------|--------|-------------|
-| `entities` | list | **requis** | Liste des entités `device_tracker.map_*` |
-| `title` | string | "Montreal Snow Removal" | Titre de la carte |
-| `zoom` | number | 15 | Niveau de zoom initial |
-| `center` | [lat, lon] | auto | Centre de la carte (auto = centre sur les rues) |
-| `dark_mode` | boolean | true | Mode sombre de la carte |
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `entities` | list | **required** | List of `device_tracker.map_*` entities |
+| `title` | string | "Montreal Snow Removal" | Card title |
+| `zoom` | number | 15 | Initial zoom level |
+| `center` | [lat, lon] | auto | Map center (auto = center on streets) |
+| `dark_mode` | boolean | true | Dark mode for the map |
 
-### Exemples de configuration
+### Configuration Examples
 
-#### Configuration basique :
+#### Basic configuration:
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
@@ -108,11 +88,11 @@ entities:
   - device_tracker.map_home
 ```
 
-#### Configuration complète :
+#### Complete configuration:
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
-title: Mes rues suivies
+title: My Tracked Streets
 entities:
   - device_tracker.map_home
   - device_tracker.map_work
@@ -122,114 +102,114 @@ center: [45.4942, -73.5709]  # NDG, Montreal
 dark_mode: false
 ```
 
-#### Configuration avec auto-centrage :
+#### Configuration with auto-centering:
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
-title: Déneigement en temps réel
+title: Real-time Snow Removal
 entities:
   - device_tracker.map_home
   - device_tracker.map_work
-# center non spécifié = auto-centrage sur toutes les rues
+# center not specified = auto-center on all streets
 zoom: 15
 dark_mode: true
 ```
 
-## Fonctionnalités
+## Features
 
-### 1. **Segments de rue complets**
-Les rues sont affichées comme des lignes continues, pas juste des points.
+### 1. **Complete Street Segments**
+Streets are displayed as continuous lines, not just points.
 
-### 2. **Couleurs dynamiques**
-Les couleurs changent automatiquement selon l'état du déneigement.
+### 2. **Dynamic Colors**
+Colors change automatically based on snow removal status.
 
-### 3. **Info-bulles interactives**
-Clique sur une rue pour voir :
-- Nom de la rue
-- Côté (Gauche/Droite)
-- État du déneigement
-- Dates de début et fin
+### 3. **Interactive Tooltips**
+Click on a street to see:
+- Street name
+- Side (Left/Right)
+- Snow removal status
+- Start and end dates
 
-### 4. **Légende intégrée**
-Une légende est affichée en bas à droite pour comprendre les couleurs.
+### 4. **Built-in Legend**
+A legend is displayed in the bottom right to understand the colors.
 
-### 5. **Auto-centrage**
-La carte se centre automatiquement pour afficher toutes tes rues (si `center` n'est pas spécifié).
+### 5. **Auto-centering**
+The map automatically centers to display all your streets (if `center` is not specified).
 
-## Dépannage
+## Troubleshooting
 
-### La carte n'apparaît pas
+### The card doesn't appear
 
-1. **Vérifier que la ressource est chargée :**
+1. **Check that the resource is loaded:**
    - Developer Tools → ⚠️ (warnings)
-   - Chercher des erreurs liées à `montreal-snow-removal-map-card.js`
+   - Look for errors related to `montreal-snow-removal-map-card.js`
 
-2. **Vérifier la console du navigateur :**
-   - Appuyer sur F12
-   - Aller dans l'onglet "Console"
-   - Chercher des erreurs JavaScript
+2. **Check the browser console:**
+   - Press F12
+   - Go to the "Console" tab
+   - Look for JavaScript errors
 
-3. **Vérifier le chemin du fichier :**
-   - Le fichier doit être dans `config/www/montreal-snow-removal-map-card.js`
-   - L'URL de la ressource doit être `/local/montreal-snow-removal-map-card.js`
+3. **Check the resource path:**
+   - The resource URL must be `/api/montreal_snow_removal/map-card.js`
+   - Check in Settings → Dashboards → Resources
 
-### Les segments ne s'affichent pas
+### Segments don't display
 
-1. **Vérifier que les coordonnées sont présentes :**
+1. **Check that coordinates are present:**
    - Developer Tools → States
-   - Chercher `device_tracker.map_*`
-   - Vérifier l'attribut `street_coordinates`
+   - Search for `device_tracker.map_*`
+   - Check the `street_coordinates` attribute
 
-2. **Vérifier les logs Home Assistant :**
-   - Chercher "GeoJSON loaded"
-   - Si absent, le GeoJSON n'a pas été téléchargé
+2. **Check Home Assistant logs:**
+   - Look for "GeoJSON loaded"
+   - If absent, the GeoJSON was not downloaded
 
-### La carte est vide
+### The map is empty
 
-1. **Vérifier que tu as des entités configurées :**
+1. **Check that you have configured entities:**
    ```yaml
    entities:
-     - device_tracker.map_home  # Remplacer par tes vraies entités
+     - device_tracker.map_home  # Replace with your actual entities
    ```
 
-2. **Vérifier que les entités existent :**
+2. **Check that the entities exist:**
    - Settings → Devices & Services → Montreal Snow Removal
-   - Chercher les entités `device_tracker.map_*`
+   - Look for `device_tracker.map_*` entities
 
 ### Leaflet library not found
 
-La carte utilise Leaflet qui est normalement inclus dans Home Assistant via l'intégration Map.
+The card uses Leaflet which is normally included in Home Assistant via the Map integration.
 
-**Solution :**
-1. Assure-toi que l'intégration "Map" est activée dans Home Assistant
-2. Si le problème persiste, tu peux charger Leaflet manuellement :
+**Solution:**
+1. Make sure the "Map" integration is enabled in Home Assistant
+2. If the problem persists, you can load Leaflet manually:
 
-Ajoute cette ressource en premier :
+Add this resource first:
 ```
 URL: https://unpkg.com/leaflet@1.9.4/dist/leaflet.css
 Type: Stylesheet
 ```
 
-Puis :
+Then:
 ```
 URL: https://unpkg.com/leaflet@1.9.4/dist/leaflet.js
 Type: JavaScript Module
 ```
 
-## Performances
+## Performance
 
-- **Chargement initial :** < 1 seconde
-- **Mise à jour :** Temps réel (quand les entités changent)
-- **Nombre de rues :** Optimisé pour 1-10 rues, fonctionne jusqu'à 50+
+- **Initial load:** < 1 second
+- **Updates:** Real-time (when entities change)
+- **Number of streets:** Optimized for 1-10 streets, works up to 50+
 
-## Personnalisation avancée
+## Advanced Customization
 
-Tu peux modifier le fichier `montreal-snow-removal-map-card.js` pour :
-- Changer les couleurs dans `_getColorForState()`
-- Modifier l'épaisseur des lignes (`weight: 5`)
-- Personnaliser les info-bulles dans `_createPopupContent()`
-- Changer le fond de carte dans `tileUrl`
+You can modify the `montreal-snow-removal-map-card.js` file to:
+- Change colors in `_getColorForState()`
+- Modify line thickness (`weight: 5`)
+- Customize tooltips in `_createPopupContent()`
+- Change the map background in `tileUrl`
 
 ---
 
-**Besoin d'aide ?** Ouvre une issue sur GitHub !
+**Need help?** Open an issue on GitHub!

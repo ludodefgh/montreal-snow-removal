@@ -7,6 +7,8 @@ Track snow removal operations in Montreal using real-time data from the city's P
 - **Automatic address search** - Just enter your Montreal address
 - **Real-time tracking** - Know when snow removal is scheduled for your street
 - **Parking ban alerts** - Get notified when parking is banned
+- **Visual map display** - See your streets on a map with color-coded status
+- **Custom map card included** - Display complete street segments as colored lines (auto-installed!)
 - **Multiple addresses** - Track home, work, or any location in Montreal
 - **Bilingual** - Full support for French and English
 
@@ -16,6 +18,18 @@ Track snow removal operations in Montreal using real-time data from the city's P
 2. Add the integration in Home Assistant
 3. Enter your Montreal address
 4. Done! No API token required
+
+Add the custom map card resource in **Settings** → **Dashboards** → **Resources**:
+- URL: `/api/montreal_snow_removal/map-card.js`
+- Type: JavaScript Module
+
+Then add the card to your dashboard:
+
+```yaml
+type: custom:montreal-snow-removal-map-card
+entities:
+  - device_tracker.map_home
+```
 
 Data updates every ~20 minutes from the city's public API.
 

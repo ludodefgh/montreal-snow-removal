@@ -173,12 +173,16 @@ Display complete street segments as colored lines on the map based on snow remov
 - 🔵 Blue lines = Snowy/Not planned
 
 **Installation:**
-1. Copy `www/montreal-snow-removal-map-card.js` to your `config/www/` folder
-2. Add resource in **Settings** → **Dashboards** → **Resources**:
-   - URL: `/local/montreal-snow-removal-map-card.js`
-   - Type: JavaScript Module
-3. Restart Home Assistant
-4. Add card to dashboard:
+
+The custom card is **included** with the integration. Add it as a Lovelace resource:
+
+1. Go to **Settings** → **Dashboards** → click menu (3 dots) → **Resources**
+2. Click **+ Add Resource**
+3. URL: `/api/montreal_snow_removal/map-card.js`
+4. Type: **JavaScript Module**
+5. Click **Create** and refresh your browser
+
+**Add the card to your dashboard:**
 
 ```yaml
 type: custom:montreal-snow-removal-map-card
@@ -189,8 +193,6 @@ entities:
 zoom: 15
 dark_mode: true
 ```
-
-**Full installation guide:** See [CUSTOM_CARD_INSTALLATION.md](CUSTOM_CARD_INSTALLATION.md)
 
 ### How It Works
 

@@ -32,6 +32,52 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     this._loadingNeighborhood = false;
     this._neighborhoodCache = new Map(); // Cache viewport queries
     this._centerMarker = null; // Debug marker for viewport center
+
+    // Translations
+    this._translations = {
+      fr: {
+        legend: 'Légende',
+        snowy: 'Enneigé',
+        cleared: 'Déneigé',
+        parking_banned: 'Stationnement interdit',
+        loading_planned: 'Chargement planifié',
+        loading_postponed: 'Chargement reporté',
+        loading_in_progress: 'Chargement en cours',
+        no_operation: 'Aucune opération',
+        tracked_street: 'Rue suivie',
+        side: 'Côté',
+        status: 'État',
+        start: 'Début',
+        end: 'Fin',
+      },
+      en: {
+        legend: 'Legend',
+        snowy: 'Snowy',
+        cleared: 'Cleared',
+        parking_banned: 'Parking banned',
+        loading_planned: 'Loading planned',
+        loading_postponed: 'Loading postponed',
+        loading_in_progress: 'Loading in progress',
+        no_operation: 'No operation',
+        tracked_street: 'Tracked street',
+        side: 'Side',
+        status: 'Status',
+        start: 'Start',
+        end: 'End',
+      },
+    };
+  }
+
+  _getLanguage() {
+    // Get language from Home Assistant, default to French
+    const lang = this._hass?.language || 'fr';
+    // Support both 'fr' and 'fr-CA', etc.
+    return lang.startsWith('fr') ? 'fr' : 'en';
+  }
+
+  _t(key) {
+    const lang = this._getLanguage();
+    return this._translations[lang]?.[key] || this._translations['en'][key] || key;
   }
 
   setConfig(config) {
@@ -222,41 +268,41 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         <div id="map"></div>
         <div class="legend">
           <div class="legend-header" id="legend-header">
-            <span class="legend-title">Légende</span>
+            <span class="legend-title">${this._t('legend')}</span>
             <span class="legend-toggle">▼</span>
           </div>
           <div class="legend-content" id="legend-content">
             <div class="legend-item">
               <div class="legend-color" style="background-color: blue;"></div>
-              <span>Enneigé</span>
+              <span>${this._t('snowy')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: green;"></div>
-              <span>Déneigé</span>
+              <span>${this._t('cleared')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: red;"></div>
-              <span>Stationnement interdit</span>
+              <span>${this._t('parking_banned')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: orange;"></div>
-              <span>Chargement planifié</span>
+              <span>${this._t('loading_planned')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: yellow;"></div>
-              <span>Chargement reporté</span>
+              <span>${this._t('loading_postponed')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: purple;"></div>
-              <span>Chargement en cours</span>
+              <span>${this._t('loading_in_progress')}</span>
             </div>
             <div class="legend-item">
               <div class="legend-color" style="background-color: gray;"></div>
-              <span>Aucune opération</span>
+              <span>${this._t('no_operation')}</span>
             </div>
             <div class="legend-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};">
               <span style="font-weight: bold;">★</span>
-              <span style="margin-left: 4px;">Rue suivie</span>
+              <span style="margin-left: 4px;">${this._t('tracked_street')}</span>
             </div>
           </div>
         </div>
@@ -569,14 +615,14 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     }
 
     if (streetSide) {
-      content += `<br>Côté: ${streetSide}`;
+      content += `<br>${this._t('side')}: ${streetSide}`;
     }
-    content += `<br>État: ${this._formatState(state)}`;
+    content += `<br>${this._t('status')}: ${this._formatState(state)}`;
     if (startTime) {
-      content += `<br>Début: ${this._formatDateTime(startTime)}`;
+      content += `<br>${this._t('start')}: ${this._formatDateTime(startTime)}`;
     }
     if (endTime) {
-      content += `<br>Fin: ${this._formatDateTime(endTime)}`;
+      content += `<br>${this._t('end')}: ${this._formatDateTime(endTime)}`;
     }
 
     return content;
@@ -590,21 +636,21 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     }
 
     if (street.street_side) {
-      content += `<br>Côté: ${street.street_side}`;
+      content += `<br>${this._t('side')}: ${street.street_side}`;
     }
-    content += `<br>État: ${this._formatState(street.state)}`;
+    content += `<br>${this._t('status')}: ${this._formatState(street.state)}`;
     if (street.start_time) {
-      content += `<br>Début: ${this._formatDateTime(street.start_time)}`;
+      content += `<br>${this._t('start')}: ${this._formatDateTime(street.start_time)}`;
     }
     if (street.end_time) {
-      content += `<br>Fin: ${this._formatDateTime(street.end_time)}`;
+      content += `<br>${this._t('end')}: ${this._formatDateTime(street.end_time)}`;
     }
 
     return content;
   }
 
   _formatState(state) {
-    const stateMap = {
+    const stateMapFr = {
       'enneige': 'Enneigé',
       'deneige': 'Déneigé',
       'stationnement_interdit': 'Stationnement interdit',
@@ -618,13 +664,29 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       'replanifie': 'Chargement reporté',
       'degage': 'Aucune opération',
     };
+    const stateMapEn = {
+      'enneige': 'Snowy',
+      'deneige': 'Cleared',
+      'stationnement_interdit': 'Parking banned',
+      'chargement_planifie': 'Loading planned',
+      'chargement_reporte': 'Loading postponed',
+      'chargement_en_cours': 'Loading in progress',
+      'aucune_operation': 'No operation',
+      // Legacy state support (old names)
+      'planifie': 'Loading planned',
+      'en_cours': 'Loading in progress',
+      'replanifie': 'Loading postponed',
+      'degage': 'No operation',
+    };
+    const stateMap = this._getLanguage() === 'fr' ? stateMapFr : stateMapEn;
     return stateMap[state] || state;
   }
 
   _formatDateTime(isoString) {
     try {
       const date = new Date(isoString);
-      return date.toLocaleString('fr-CA', {
+      const locale = this._getLanguage() === 'fr' ? 'fr-CA' : 'en-CA';
+      return date.toLocaleString(locale, {
         month: 'short',
         day: 'numeric',
         hour: '2-digit',
@@ -778,15 +840,37 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this._config = {};
     this._hass = null;
+    this._availableEntities = [];
+    this._ignoreNextSetConfig = false;
   }
 
   setConfig(config) {
     this._config = { ...config };
+    // Skip render if this is from our own _fireEvent
+    if (this._ignoreNextSetConfig) {
+      this._ignoreNextSetConfig = false;
+      return;
+    }
     this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
+    this._updateAvailableEntities();
+  }
+
+  _updateAvailableEntities() {
+    if (!this._hass) return;
+
+    // Get all device_tracker entities from Montreal Snow Removal
+    this._availableEntities = Object.keys(this._hass.states)
+      .filter(entityId => {
+        if (!entityId.startsWith('device_tracker.')) return false;
+        const state = this._hass.states[entityId];
+        // Check if it has street_coordinates attribute (Montreal Snow Removal map entity)
+        return state.attributes && state.attributes.street_coordinates;
+      })
+      .sort();
   }
 
   _render() {
@@ -875,6 +959,59 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
           color: var(--secondary-text-color);
           margin-top: 4px;
         }
+        .entity-input-wrapper {
+          position: relative;
+          flex: 1;
+          margin-right: 8px;
+        }
+        .entity-input-wrapper input {
+          width: 100%;
+          padding: 4px 8px;
+          border: 1px solid var(--divider-color);
+          border-radius: 4px;
+          background: var(--primary-background-color);
+          color: var(--primary-text-color);
+          box-sizing: border-box;
+        }
+        .autocomplete-list {
+          position: absolute;
+          top: 100%;
+          left: 0;
+          right: 0;
+          max-height: 200px;
+          overflow-y: auto;
+          background: var(--primary-background-color);
+          border: 1px solid var(--divider-color);
+          border-top: none;
+          border-radius: 0 0 4px 4px;
+          z-index: 1000;
+          display: none;
+        }
+        .autocomplete-list.show {
+          display: block;
+        }
+        .autocomplete-item {
+          padding: 8px 12px;
+          cursor: pointer;
+          font-size: 13px;
+          border-bottom: 1px solid var(--divider-color);
+        }
+        .autocomplete-item:last-child {
+          border-bottom: none;
+        }
+        .autocomplete-item:hover,
+        .autocomplete-item.selected {
+          background: var(--primary-color);
+          color: var(--text-primary-color);
+        }
+        .autocomplete-item .entity-name {
+          font-weight: 500;
+        }
+        .autocomplete-item .entity-friendly {
+          font-size: 11px;
+          opacity: 0.8;
+          margin-top: 2px;
+        }
       </style>
       <div class="card-config">
         <div class="section-title">Général</div>
@@ -904,18 +1041,23 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
         <div class="entity-list" id="entity-list">
           ${(this._config.entities || []).map((entity, index) => `
             <div class="entity-item" data-index="${index}">
-              <input
-                type="text"
-                data-index="${index}"
-                value="${entity}"
-                placeholder="device_tracker.snow_removal_..."
-              />
+              <div class="entity-input-wrapper">
+                <input
+                  type="text"
+                  class="entity-input"
+                  data-index="${index}"
+                  value="${entity}"
+                  placeholder="device_tracker.snow_removal_..."
+                  autocomplete="off"
+                />
+                <div class="autocomplete-list" data-index="${index}"></div>
+              </div>
               <button data-index="${index}">✕</button>
             </div>
           `).join('')}
         </div>
         <button class="add-entity-btn">+ Ajouter une entité</button>
-        <div class="help-text">Ajoutez les entités device_tracker.snow_removal_* à suivre sur la carte</div>
+        <div class="help-text">Ajoutez les entités device_tracker à suivre sur la carte (tapez pour voir les suggestions)</div>
 
         <div class="section-title">Centre et Zoom</div>
 
@@ -1022,12 +1164,24 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
       }
     });
 
-    // Entity input listeners - déclencher sur blur ou Enter
-    this.shadowRoot.querySelectorAll('.entity-item input').forEach(element => {
-      element.addEventListener('blur', this._entityChanged.bind(this));
+    // Entity input listeners with autocomplete
+    this.shadowRoot.querySelectorAll('.entity-input').forEach(element => {
+      element.addEventListener('input', (e) => this._onEntityInput(e));
+      element.addEventListener('focus', (e) => this._onEntityFocus(e));
+      element.addEventListener('blur', (e) => {
+        // Delay to allow click on autocomplete item
+        setTimeout(() => this._hideAutocomplete(e.target), 200);
+        this._entityChanged(e);
+      });
       element.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
+          this._hideAutocomplete(e.target);
           this._entityChanged(e);
+        } else if (e.key === 'Escape') {
+          this._hideAutocomplete(e.target);
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          this._navigateAutocomplete(e.target, e.key === 'ArrowDown' ? 1 : -1);
         }
       });
     });
@@ -1042,6 +1196,108 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
         this._removeEntity(index);
       });
     });
+  }
+
+  _onEntityInput(ev) {
+    const input = ev.target;
+    const value = input.value.toLowerCase();
+    this._showAutocomplete(input, value);
+  }
+
+  _onEntityFocus(ev) {
+    const input = ev.target;
+    const value = input.value.toLowerCase();
+    this._showAutocomplete(input, value);
+  }
+
+  _showAutocomplete(input, filter) {
+    const index = input.dataset.index;
+    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    if (!listEl) return;
+
+    // Filter available entities
+    const currentEntities = this._config.entities || [];
+    const filtered = this._availableEntities.filter(entityId => {
+      // Don't show already selected entities (except current one)
+      if (currentEntities.includes(entityId) && currentEntities[index] !== entityId) {
+        return false;
+      }
+      // Filter by search term
+      if (filter && !entityId.toLowerCase().includes(filter)) {
+        const state = this._hass.states[entityId];
+        const friendlyName = state?.attributes?.friendly_name || '';
+        if (!friendlyName.toLowerCase().includes(filter)) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (filtered.length === 0) {
+      listEl.classList.remove('show');
+      return;
+    }
+
+    // Build autocomplete list
+    listEl.innerHTML = filtered.map(entityId => {
+      const state = this._hass.states[entityId];
+      const friendlyName = state?.attributes?.friendly_name || '';
+      return `
+        <div class="autocomplete-item" data-entity="${entityId}">
+          <div class="entity-name">${entityId}</div>
+          ${friendlyName ? `<div class="entity-friendly">${friendlyName}</div>` : ''}
+        </div>
+      `;
+    }).join('');
+
+    // Add click handlers
+    listEl.querySelectorAll('.autocomplete-item').forEach(item => {
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const entityId = item.dataset.entity;
+        input.value = entityId;
+        this._hideAutocomplete(input);
+        this._entityChanged({ target: input });
+      });
+    });
+
+    listEl.classList.add('show');
+  }
+
+  _hideAutocomplete(input) {
+    const index = input.dataset.index;
+    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    if (listEl) {
+      listEl.classList.remove('show');
+    }
+  }
+
+  _navigateAutocomplete(input, direction) {
+    const index = input.dataset.index;
+    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    if (!listEl || !listEl.classList.contains('show')) return;
+
+    const items = listEl.querySelectorAll('.autocomplete-item');
+    if (items.length === 0) return;
+
+    const currentSelected = listEl.querySelector('.autocomplete-item.selected');
+    let newIndex = 0;
+
+    if (currentSelected) {
+      currentSelected.classList.remove('selected');
+      const currentIndex = Array.from(items).indexOf(currentSelected);
+      newIndex = currentIndex + direction;
+      if (newIndex < 0) newIndex = items.length - 1;
+      if (newIndex >= items.length) newIndex = 0;
+    } else {
+      newIndex = direction === 1 ? 0 : items.length - 1;
+    }
+
+    items[newIndex].classList.add('selected');
+    items[newIndex].scrollIntoView({ block: 'nearest' });
+
+    // Update input with selected value
+    input.value = items[newIndex].dataset.entity;
   }
 
   _valueChanged(ev) {
@@ -1127,6 +1383,9 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
   }
 
   _fireEvent() {
+    // Tell setConfig to skip the next render (it's our own update)
+    this._ignoreNextSetConfig = true;
+
     const event = new CustomEvent('config-changed', {
       detail: { config: this._config },
       bubbles: true,

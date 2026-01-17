@@ -22,6 +22,8 @@ from .const import (
     DOMAIN,
 )
 from .coordinator import SnowRemovalCoordinator
+from .frontend import async_register_frontend
+from .http import async_register_http
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +109,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Register service for map card to fetch streets in viewport
     await _register_services(hass, entry.entry_id)
+
+    # Register HTTP endpoint to serve the map card JS
+    await async_register_http(hass)
+
+    # Try to automatically register the Lovelace resource
+    await async_register_frontend(hass)
 
     # Register update listener for options changes
     entry.async_on_unload(entry.add_update_listener(async_update_options))

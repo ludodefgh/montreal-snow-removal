@@ -146,3 +146,4 @@ secrets.yaml
 # Integration specific
 custom_components/montreal_snow_removal/data/
 *.json.backup
+default

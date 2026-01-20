@@ -287,12 +287,22 @@ async def _register_services(hass: HomeAssistant, entry_id: str) -> None:
 
             # Build street data
             coordinates = geometry.get("coordinates", [])
+
+            # Derive state with parking ban logic
+            derived_state = coordinator.derive_state_with_parking_ban(
+                etat_code=planif.get("etat_deneig", 0),
+                date_deb_planif=planif.get("date_deb_planif"),
+                date_fin_planif=planif.get("date_fin_planif"),
+                date_deb_replanif=planif.get("date_deb_replanif"),
+                date_fin_replanif=planif.get("date_fin_replanif"),
+            )
+
             street_data = {
                 "cote_rue_id": cote_rue_id_int,
                 "coordinates": [[coord[1], coord[0]] for coord in coordinates],  # Flip to [lat, lon]
                 "center_latitude": street_center_lat,
                 "center_longitude": street_center_lon,
-                "state": coordinator._map_etat_deneig(planif.get("etat_deneig", 0)),
+                "state": derived_state,
                 "street_name": f"{street_info.get('type_voie', '')} {street_info.get('nom_voie', '')}".strip(),
                 "street_side": street_info.get("cote", ""),
             }

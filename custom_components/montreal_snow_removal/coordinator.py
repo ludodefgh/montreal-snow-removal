@@ -21,6 +21,9 @@ from .const import (
     DOMAIN,
     MIN_SCAN_INTERVAL,
     STATE_MAP,
+    STATE_PLANIFIE,
+    STATE_REPLANIFIE,
+    STATE_STATIONNEMENT_INTERDIT,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -217,6 +220,76 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
             State string constant
         """
         return STATE_MAP.get(etat_value, "enneige")
+
+    def derive_state_with_parking_ban(
+        self,
+        etat_code: int,
+        date_deb_planif: datetime | None,
+        date_fin_planif: datetime | None,
+        date_deb_replanif: datetime | None = None,
+        date_fin_replanif: datetime | None = None,
+    ) -> str:
+        """Derive the display state, including 'stationnement_interdit' when applicable.
+
+        The official Montreal app shows 'stationnement_interdit' (parking banned, red)
+        when the current time is within the planning interval. This method replicates
+        that behavior.
+
+        Args:
+            etat_code: Numeric state value from API (0-10)
+            date_deb_planif: Planning start datetime
+            date_fin_planif: Planning end datetime
+            date_deb_replanif: Rescheduled start datetime (optional)
+            date_fin_replanif: Rescheduled end datetime (optional)
+
+        Returns:
+            State string, potentially 'stationnement_interdit' if within interval
+        """
+        base_state = STATE_MAP.get(etat_code, "enneige")
+
+        # Only derive parking ban for planned or rescheduled states
+        if base_state not in (STATE_PLANIFIE, STATE_REPLANIFIE):
+            return base_state
+
+        now = datetime.now()
+
+        # Check rescheduled interval first (takes priority if state is replanifie)
+        if base_state == STATE_REPLANIFIE and date_deb_replanif and date_fin_replanif:
+            if self._is_within_interval(now, date_deb_replanif, date_fin_replanif):
+                return STATE_STATIONNEMENT_INTERDIT
+
+        # Check original planning interval
+        if date_deb_planif and date_fin_planif:
+            if self._is_within_interval(now, date_deb_planif, date_fin_planif):
+                return STATE_STATIONNEMENT_INTERDIT
+
+        return base_state
+
+    def _is_within_interval(
+        self, now: datetime, start: datetime, end: datetime
+    ) -> bool:
+        """Check if current time is within the given interval.
+
+        Args:
+            now: Current datetime
+            start: Interval start datetime
+            end: Interval end datetime
+
+        Returns:
+            True if now is between start and end
+        """
+        # Handle timezone-naive vs timezone-aware comparisons
+        if start.tzinfo is None and now.tzinfo is not None:
+            start = start.replace(tzinfo=now.tzinfo)
+        elif start.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=start.tzinfo)
+
+        if end.tzinfo is None and now.tzinfo is not None:
+            end = end.replace(tzinfo=now.tzinfo)
+        elif end.tzinfo is not None and now.tzinfo is None:
+            now = now.replace(tzinfo=end.tzinfo)
+
+        return start <= now <= end
 
     def add_tracked_street(self, cote_rue_id: int) -> None:
         """Add a street to track.

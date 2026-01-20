@@ -41,7 +41,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         cleared: 'Déneigé',
         parking_banned: 'Stationnement interdit',
         loading_planned: 'Chargement planifié',
-        loading_postponed: 'Chargement reporté',
+        will_be_rescheduled: 'Sera replanifié',
         loading_in_progress: 'Chargement en cours',
         no_operation: 'Aucune opération',
         tracked_street: 'Rue suivie',
@@ -56,7 +56,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         cleared: 'Cleared',
         parking_banned: 'Parking banned',
         loading_planned: 'Loading planned',
-        loading_postponed: 'Loading postponed',
+        will_be_rescheduled: 'Will be rescheduled',
         loading_in_progress: 'Loading in progress',
         no_operation: 'No operation',
         tracked_street: 'Tracked street',
@@ -273,31 +273,31 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
           </div>
           <div class="legend-content" id="legend-content">
             <div class="legend-item">
-              <div class="legend-color" style="background-color: blue;"></div>
-              <span>${this._t('snowy')}</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background-color: green;"></div>
-              <span>${this._t('cleared')}</span>
-            </div>
-            <div class="legend-item">
-              <div class="legend-color" style="background-color: red;"></div>
+              <div class="legend-color" style="background-color: #FF0000;"></div>
               <span>${this._t('parking_banned')}</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background-color: orange;"></div>
+              <div class="legend-color" style="background-color: #FF8C00;"></div>
               <span>${this._t('loading_planned')}</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background-color: yellow;"></div>
-              <span>${this._t('loading_postponed')}</span>
+              <div class="legend-color" style="background-color: #FFD700;"></div>
+              <span>${this._t('will_be_rescheduled')}</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background-color: purple;"></div>
+              <div class="legend-color" style="background-color: #9932CC;"></div>
               <span>${this._t('loading_in_progress')}</span>
             </div>
             <div class="legend-item">
-              <div class="legend-color" style="background-color: gray;"></div>
+              <div class="legend-color" style="background-color: #00AA00;"></div>
+              <span>${this._t('cleared')}</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #0066CC;"></div>
+              <span>${this._t('snowy')}</span>
+            </div>
+            <div class="legend-item">
+              <div class="legend-color" style="background-color: #808080;"></div>
               <span>${this._t('no_operation')}</span>
             </div>
             <div class="legend-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px solid ${this._config.dark_mode ? '#666' : '#ccc'};">
@@ -578,6 +578,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
 
   _getColorForState(state) {
     const colorMap = {
+      // Color names (from marker_color attribute)
       'blue': '#0066CC',
       'green': '#00AA00',
       'red': '#FF0000',
@@ -585,18 +586,15 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       'yellow': '#FFD700',
       'purple': '#9932CC',
       'gray': '#808080',
-      'enneige': '#0066CC',
-      'deneige': '#00AA00',
-      'stationnement_interdit': '#FF0000',
-      'chargement_planifie': '#FF8C00',
-      'chargement_reporte': '#FFD700',
-      'chargement_en_cours': '#9932CC',
-      'aucune_operation': '#808080',
-      // Legacy state support (old names)
-      'planifie': '#FF8C00',
-      'en_cours': '#9932CC',
-      'replanifie': '#FFD700',
-      'degage': '#808080',
+      // State names
+      'enneige': '#0066CC',           // Blue - Snowy
+      'deneige': '#00AA00',           // Green - Cleared
+      'stationnement_interdit': '#FF0000',  // Red - Parking banned (within interval)
+      'planifie': '#FF8C00',          // Orange - Planned (not yet in interval)
+      'replanifie': '#FF8C00',        // Orange - Rescheduled with date (not yet in interval)
+      'sera_replanifie': '#FFD700',   // Yellow - Will be rescheduled (no date yet)
+      'en_cours': '#9932CC',          // Purple - Loading in progress
+      'degage': '#808080',            // Gray - Clear
     };
     return colorMap[state] || '#808080';
   }
@@ -654,28 +652,20 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       'enneige': 'Enneigé',
       'deneige': 'Déneigé',
       'stationnement_interdit': 'Stationnement interdit',
-      'chargement_planifie': 'Chargement planifié',
-      'chargement_reporte': 'Chargement reporté',
-      'chargement_en_cours': 'Chargement en cours',
-      'aucune_operation': 'Aucune opération',
-      // Legacy state support (old names)
       'planifie': 'Chargement planifié',
+      'replanifie': 'Chargement replanifié',
+      'sera_replanifie': 'Sera replanifié',
       'en_cours': 'Chargement en cours',
-      'replanifie': 'Chargement reporté',
       'degage': 'Aucune opération',
     };
     const stateMapEn = {
       'enneige': 'Snowy',
       'deneige': 'Cleared',
       'stationnement_interdit': 'Parking banned',
-      'chargement_planifie': 'Loading planned',
-      'chargement_reporte': 'Loading postponed',
-      'chargement_en_cours': 'Loading in progress',
-      'aucune_operation': 'No operation',
-      // Legacy state support (old names)
       'planifie': 'Loading planned',
+      'replanifie': 'Loading rescheduled',
+      'sera_replanifie': 'Will be rescheduled',
       'en_cours': 'Loading in progress',
-      'replanifie': 'Loading postponed',
       'degage': 'No operation',
     };
     const stateMap = this._getLanguage() === 'fr' ? stateMapFr : stateMapEn;

@@ -28,6 +28,8 @@ from .const import (
     STATE_ENNEIGE,
     STATE_PLANIFIE,
     STATE_REPLANIFIE,
+    STATE_SERA_REPLANIFIE,
+    STATE_STATIONNEMENT_INTERDIT,
 )
 from .coordinator import SnowRemovalCoordinator
 
@@ -144,8 +146,9 @@ class SnowRemovalTracker(CoordinatorEntity, TrackerEntity):
         if not street_data:
             return "mdi:snowflake"
 
-        state = street_data.get("state", STATE_ENNEIGE)
-        return ICON_MAP.get(state, "mdi:snowflake")
+        # Use derived state for icon (includes parking ban)
+        derived_state = self._get_derived_state(street_data)
+        return ICON_MAP.get(derived_state, "mdi:snowflake")
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -155,9 +158,12 @@ class SnowRemovalTracker(CoordinatorEntity, TrackerEntity):
         if not street_data:
             return {}
 
+        # Get derived state (includes parking ban logic)
+        derived_state = self._get_derived_state(street_data)
+
         attributes = {
             "cote_rue_id": self._cote_rue_id,
-            "snow_removal_state": street_data.get("state"),
+            "snow_removal_state": derived_state,
         }
 
         # Add street info
@@ -170,9 +176,10 @@ class SnowRemovalTracker(CoordinatorEntity, TrackerEntity):
             attributes["street_side"] = street_data.get("cote")
 
         # Add planning dates
-        state = street_data.get("state")
+        # Use base state from API for date selection logic
+        base_state = street_data.get("state")
 
-        if state == STATE_REPLANIFIE:
+        if base_state == STATE_REPLANIFIE:
             # Show rescheduled dates if available
             date_deb = street_data.get("date_deb_replanif")
             date_fin = street_data.get("date_fin_replanif")
@@ -192,8 +199,8 @@ class SnowRemovalTracker(CoordinatorEntity, TrackerEntity):
         if date_fin:
             attributes["end_time"] = self._format_datetime(date_fin)
 
-        # Add visual color hint for map display
-        attributes["marker_color"] = self._get_marker_color(state)
+        # Add visual color hint for map display (uses derived state)
+        attributes["marker_color"] = self._get_marker_color(derived_state)
 
         # Add full street geometry for advanced map displays
         geometry = self.coordinator.geojson_handler.get_geometry(self._cote_rue_id)
@@ -238,11 +245,30 @@ class SnowRemovalTracker(CoordinatorEntity, TrackerEntity):
             Color name for map marker
         """
         color_map = {
-            STATE_PLANIFIE: "red",  # Planned
-            STATE_EN_COURS: "yellow",  # In progress
+            STATE_STATIONNEMENT_INTERDIT: "red",  # Parking banned (within interval)
+            STATE_PLANIFIE: "orange",  # Planned (not yet in interval)
+            STATE_REPLANIFIE: "orange",  # Rescheduled with new date (not yet in interval)
+            STATE_SERA_REPLANIFIE: "yellow",  # Will be rescheduled (no date yet)
+            STATE_EN_COURS: "purple",  # Loading in progress
             STATE_DENEIGE: "green",  # Completed
             STATE_DEGAGE: "gray",  # Clear
-            STATE_REPLANIFIE: "orange",  # Rescheduled
             STATE_ENNEIGE: "blue",  # Snowy/not yet planned
         }
         return color_map.get(state, "blue")
+
+    def _get_derived_state(self, street_data: dict[str, Any]) -> str:
+        """Get the derived state including parking ban logic.
+
+        Args:
+            street_data: Street data dictionary
+
+        Returns:
+            Derived state string
+        """
+        return self.coordinator.derive_state_with_parking_ban(
+            etat_code=street_data.get("etat_code", 0),
+            date_deb_planif=street_data.get("date_deb_planif"),
+            date_fin_planif=street_data.get("date_fin_planif"),
+            date_deb_replanif=street_data.get("date_deb_replanif"),
+            date_fin_replanif=street_data.get("date_fin_replanif"),
+        )

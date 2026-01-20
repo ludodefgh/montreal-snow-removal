@@ -31,6 +31,8 @@ STATE_REPLANIFIE: Final = "replanifie"  # 3: Rescheduled to new date
 STATE_SERA_REPLANIFIE: Final = "sera_replanifie"  # 4: Will be rescheduled (no specific date)
 STATE_EN_COURS: Final = "en_cours"  # 5: Clearing in progress (GPS snowplows)
 STATE_DEGAGE: Final = "degage"  # 10: Clear (between snow clearing operations)
+# Derived state (not from API, calculated when current time is within planning interval)
+STATE_STATIONNEMENT_INTERDIT: Final = "stationnement_interdit"
 
 STATE_MAP: Final = {
     0: STATE_ENNEIGE,
@@ -76,6 +78,7 @@ ICON_MAP: Final = {
     STATE_REPLANIFIE: ICON_REPLANIFIE,
     STATE_SERA_REPLANIFIE: ICON_REPLANIFIE,
     STATE_DEGAGE: ICON_DEGAGE,
+    STATE_STATIONNEMENT_INTERDIT: ICON_PARKING_BAN,
 }
 
 # Configuration Keys

@@ -167,7 +167,11 @@
     },
     "binary_sensor": {
       "vehicle_parking_ban": {
-        "name": "Parking Ban"
+        "name": "Parking",
+        "state": {
+          "on": "Banned",
+          "off": "Allowed"
+        }
       }
     }
   },

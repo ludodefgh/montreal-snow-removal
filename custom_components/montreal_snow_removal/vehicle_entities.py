@@ -119,6 +119,7 @@ class VehicleParkingBanSensor(VehicleEntityMixin, CoordinatorEntity, BinarySenso
     """Binary sensor for vehicle parking ban status."""
 
     _attr_has_entity_name = True
+    _attr_translation_key = "vehicle_parking_ban"
 
     def __init__(
         self,

@@ -227,6 +227,7 @@ class VehicleStatusSensor(VehicleEntityMixin, CoordinatorEntity, SensorEntity):
     """Sensor for vehicle snow removal status."""
 
     _attr_has_entity_name = True
+    _attr_translation_key = "vehicle_status"
 
     def __init__(
         self,

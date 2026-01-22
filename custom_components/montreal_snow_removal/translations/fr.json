@@ -170,6 +170,14 @@
           "degage": "Dégagé"
         }
       },
+      "vehicle_status": {
+        "name": "Statut déneigement",
+        "state": {
+          "outside_coverage": "Hors Montréal",
+          "source_unavailable": "Source indisponible",
+          "resolving": "Résolution en cours"
+        }
+      },
       "next_operation": {
         "name": "Prochaine opération"
       },
@@ -191,15 +199,6 @@
           "on": "Interdit",
           "off": "Permis"
         }
-      }
-    }
-  },
-  "state": {
-    "sensor": {
-      "vehicle_status": {
-        "outside_coverage": "Hors Montréal",
-        "source_unavailable": "Source indisponible",
-        "resolving": "Résolution en cours"
       }
     }
   }

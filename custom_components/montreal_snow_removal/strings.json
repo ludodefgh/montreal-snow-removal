@@ -159,7 +159,12 @@
   "entity": {
     "sensor": {
       "vehicle_status": {
-        "name": "Snow Removal Status"
+        "name": "Snow Removal Status",
+        "state": {
+          "outside_coverage": "Outside Montreal",
+          "source_unavailable": "Source unavailable",
+          "resolving": "Resolving location"
+        }
       },
       "vehicle_next_operation": {
         "name": "Next Operation"
@@ -172,15 +177,6 @@
           "on": "Banned",
           "off": "Allowed"
         }
-      }
-    }
-  },
-  "state": {
-    "sensor": {
-      "vehicle_status": {
-        "outside_coverage": "Outside Montreal",
-        "source_unavailable": "Source unavailable",
-        "resolving": "Resolving location"
       }
     }
   }

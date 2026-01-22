@@ -11,6 +11,7 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 - **Visual map display** 🗺️ - See your streets on a map with color-coded markers
 - **Parking ban alerts** - know when you can't park on your street
 - **Multiple addresses** - track home, work, or any location in Montreal
+- **Vehicle tracking** 🚗 - Track your car's location and get parking ban status based on GPS
 - **Bilingual support** - Full French and English translations
 - **Rich attributes** - Street names, dates, hours until snow removal starts
 - **GPS coordinates** - Automatic location mapping for each tracked street
@@ -134,6 +135,62 @@ Displays your tracked streets on the Home Assistant map with color-coded markers
 - 🔵 **Blue** - Snowy/Not planned (enneigé)
 
 **Note:** Device tracker entities are automatically created when GeoJSON geometry data is successfully loaded. If coordinates are not available for a street, no tracker will be created.
+
+## Vehicle Tracking 🚗
+
+**NEW!** Track your vehicle's location and automatically get snow removal status for wherever it's parked.
+
+### How It Works
+
+The integration can track vehicles using any Home Assistant entity that provides GPS coordinates (device_tracker, sensor with latitude/longitude attributes, or entities with address attributes). When your vehicle moves to a new street, the integration automatically resolves the GPS coordinates to the correct Montreal street segment.
+
+### Setup
+
+1. Go to **Settings** → **Devices & Services**
+2. Find "**Montréal Snow Removal**" and click **Configure**
+3. Select "**Manage tracked vehicles**"
+4. Click "**Add new tracked vehicle**"
+5. Enter a name for your vehicle (e.g., "My Car")
+6. Select the source entity (device_tracker or sensor with location data)
+
+### Vehicle Entities
+
+For each tracked vehicle, the integration creates:
+
+#### Sensor: `sensor.snow_removal_[vehicle_name]`
+
+Shows the snow removal status at the vehicle's current location.
+
+**States:**
+- Same states as address-based sensors (enneige, planifie, en_cours, etc.)
+- `outside_coverage` - Vehicle is outside Montreal
+- `source_unavailable` - Location source entity is unavailable
+
+**Attributes:**
+- `current_street` - Current street name
+- `street_side` - Street side (Impair/Pair)
+- `source_entity` - The entity providing location data
+- `last_resolution` - When the location was last resolved
+- `resolution_method` - How the street was determined (gps, address)
+
+#### Binary Sensor: `binary_sensor.parking_[vehicle_name]`
+
+Indicates if parking is banned at the vehicle's current location.
+
+**States:**
+- `Banned` / `Interdit` - Parking is prohibited (move your car!)
+- `Allowed` / `Permis` - Parking is allowed
+
+#### Sensor: `sensor.next_operation_[vehicle_name]`
+
+Shows time until the next snow removal operation at the vehicle's location.
+
+### Technical Details
+
+- Uses point-to-segment distance calculation for accurate street matching
+- Minimum 5m movement threshold to trigger re-resolution
+- Maximum 100m distance to match a street segment
+- Automatically tracks street changes and updates coordinator
 
 ## Visual Map Display 🗺️
 
@@ -365,7 +422,19 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.2.1 (Current) 🗺️
+### Version 2.3.0 (Current) 🚗
+
+**New Feature: Vehicle Tracking**
+- ✨ **Dynamic vehicle tracking** - Track your car using GPS-based device_tracker or sensor entities
+- ✨ **Automatic street resolution** - GPS coordinates are resolved to Montreal street segments using point-to-segment distance calculation
+- ✨ **Vehicle-specific entities** - Each tracked vehicle gets its own parking ban, status, and next operation sensors
+- ✨ **Street side detection** - Detects which side of the street (Impair/Pair) the vehicle is on
+- ✨ **Config flow UI** - Easy management of tracked vehicles (add/delete) through the options menu
+
+**Improvements:**
+- 🎨 Fixed vehicle parking ban sensor to display "Allowed/Banned" (en) or "Permis/Interdit" (fr) instead of generic "Activated/Deactivated"
+
+### Version 2.2.1 🗺️
 
 **Bug Fixes:**
 - 🐛 Fixed translation placeholder quotes for hassfest validation

@@ -126,7 +126,35 @@
         "data": {
           "confirm": "Confirm deletion"
         }
+      },
+      "manage_vehicles": {
+        "title": "Manage Tracked Vehicles",
+        "description": "Currently tracking {vehicle_count} vehicle(s). These vehicles use a GPS tracker or location sensor to dynamically follow snow removal status.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_vehicle": {
+        "title": "Add Tracked Vehicle",
+        "description": "Select a device_tracker or sensor with location data. Found {entity_count} compatible entities.",
+        "data": {
+          "vehicle_name": "Vehicle name (e.g., My Car)",
+          "source_entity": "Location source entity"
+        }
+      },
+      "confirm_delete_vehicle": {
+        "title": "Confirm Vehicle Deletion",
+        "description": "Are you sure you want to stop tracking \"{vehicle_name}\"?",
+        "data": {
+          "confirm": "Confirm deletion"
+        }
       }
+    },
+    "error": {
+      "vehicle_name_required": "Vehicle name is required",
+      "source_entity_required": "Source entity is required",
+      "entity_not_found": "Entity not found in Home Assistant",
+      "entity_already_tracked": "This entity is already being tracked"
     }
   },
   "entity": {
@@ -156,6 +184,22 @@
           "on": "Banned",
           "off": "Allowed"
         }
+      },
+      "vehicle_parking_ban": {
+        "name": "Parking",
+        "state": {
+          "on": "Banned",
+          "off": "Allowed"
+        }
+      }
+    }
+  },
+  "state": {
+    "sensor": {
+      "vehicle_status": {
+        "outside_coverage": "Outside Montreal",
+        "source_unavailable": "Source unavailable",
+        "resolving": "Resolving location"
       }
     }
   }

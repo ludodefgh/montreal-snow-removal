@@ -126,7 +126,35 @@
         "data": {
           "confirm": "Confirmer la suppression"
         }
+      },
+      "manage_vehicles": {
+        "title": "Gérer les véhicules suivis",
+        "description": "Vous suivez actuellement {vehicle_count} véhicule(s). Ces véhicules utilisent un traceur GPS ou un capteur de localisation pour suivre dynamiquement le déneigement.",
+        "data": {
+          "action": "Action"
+        }
+      },
+      "add_vehicle": {
+        "title": "Ajouter un véhicule à suivre",
+        "description": "Sélectionnez un device_tracker ou capteur avec données de localisation. {entity_count} entités compatibles trouvées.",
+        "data": {
+          "vehicle_name": "Nom du véhicule (ex: Ma Voiture)",
+          "source_entity": "Entité source de localisation"
+        }
+      },
+      "confirm_delete_vehicle": {
+        "title": "Confirmer la suppression du véhicule",
+        "description": "Êtes-vous sûr de vouloir arrêter le suivi de \"{vehicle_name}\" ?",
+        "data": {
+          "confirm": "Confirmer la suppression"
+        }
       }
+    },
+    "error": {
+      "vehicle_name_required": "Le nom du véhicule est requis",
+      "source_entity_required": "L'entité source est requise",
+      "entity_not_found": "Entité non trouvée dans Home Assistant",
+      "entity_already_tracked": "Cette entité est déjà suivie"
     }
   },
   "entity": {
@@ -156,6 +184,22 @@
           "on": "Interdit",
           "off": "Permis"
         }
+      },
+      "vehicle_parking_ban": {
+        "name": "Stationnement",
+        "state": {
+          "on": "Interdit",
+          "off": "Permis"
+        }
+      }
+    }
+  },
+  "state": {
+    "sensor": {
+      "vehicle_status": {
+        "outside_coverage": "Hors Montréal",
+        "source_unavailable": "Source indisponible",
+        "resolving": "Résolution en cours"
       }
     }
   }

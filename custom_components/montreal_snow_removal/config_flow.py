@@ -16,6 +16,9 @@ from .const import (
     CONF_ADDRESSES,
     CONF_COTE_RUE_ID,
     CONF_NAME,
+    CONF_SOURCE_ENTITY,
+    CONF_TRACKED_VEHICLES,
+    CONF_VEHICLE_NAME,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
@@ -411,6 +414,9 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
         self._current_address_search: str = ""
         self._selected_cote_rue_id: int | None = None
         self._delete_index: int = 0
+        # Vehicle tracking
+        self._vehicles: list[dict[str, Any]] = []
+        self._delete_vehicle_index: int = 0
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -422,6 +428,8 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                 return await self.async_step_scan_interval()
             elif next_step == "manage_addresses":
                 return await self.async_step_manage_addresses()
+            elif next_step == "manage_vehicles":
+                return await self.async_step_manage_vehicles()
             return self.async_create_entry(title="", data=self.config_entry.options)
 
         data_schema = vol.Schema(
@@ -430,6 +438,7 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
                     {
                         "scan_interval": "Configure scan interval",
                         "manage_addresses": "Manage addresses",
+                        "manage_vehicles": "Manage tracked vehicles",
                     }
                 ),
             }
@@ -901,5 +910,233 @@ class MontrealSnowRemovalOptionsFlow(config_entries.OptionsFlow):
             data_schema=data_schema,
             description_placeholders={
                 "address_name": addr_name,
+            },
+        )
+
+    async def async_step_manage_vehicles(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage tracked vehicles - show list with options."""
+        if user_input is not None:
+            action = user_input.get("action")
+            if action == "add":
+                self._vehicles = list(
+                    self.config_entry.data.get(CONF_TRACKED_VEHICLES, [])
+                )
+                return await self.async_step_add_vehicle()
+            elif action.startswith("delete_"):
+                self._delete_vehicle_index = int(action.split("_")[1])
+                return await self.async_step_confirm_delete_vehicle()
+            return await self.async_step_init()
+
+        current_vehicles = self.config_entry.data.get(CONF_TRACKED_VEHICLES, [])
+
+        actions = {"add": "➕ Add new tracked vehicle"}
+        for idx, vehicle in enumerate(current_vehicles):
+            vehicle_name = vehicle.get(CONF_VEHICLE_NAME, f"Vehicle {idx + 1}")
+            source = vehicle.get(CONF_SOURCE_ENTITY, "unknown")
+            actions[f"delete_{idx}"] = f"🗑️ Delete: {vehicle_name} ({source})"
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("action"): vol.In(actions),
+            }
+        )
+
+        return self.async_show_form(
+            step_id="manage_vehicles",
+            data_schema=data_schema,
+            description_placeholders={
+                "vehicle_count": str(len(current_vehicles)),
+            },
+        )
+
+    async def async_step_add_vehicle(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Add a new tracked vehicle."""
+        errors = {}
+
+        if user_input is not None:
+            vehicle_name = user_input.get(CONF_VEHICLE_NAME, "").strip()
+            source_entity = user_input.get(CONF_SOURCE_ENTITY, "").strip()
+
+            if not vehicle_name:
+                errors[CONF_VEHICLE_NAME] = "vehicle_name_required"
+            elif not source_entity:
+                errors[CONF_SOURCE_ENTITY] = "source_entity_required"
+            else:
+                # Check if entity exists
+                state = self.hass.states.get(source_entity)
+                if state is None:
+                    errors[CONF_SOURCE_ENTITY] = "entity_not_found"
+                else:
+                    # Check if already tracking this entity
+                    existing = [
+                        v
+                        for v in self._vehicles
+                        if v.get(CONF_SOURCE_ENTITY) == source_entity
+                    ]
+                    if existing:
+                        errors[CONF_SOURCE_ENTITY] = "entity_already_tracked"
+                    else:
+                        # Add vehicle
+                        self._vehicles.append(
+                            {
+                                CONF_VEHICLE_NAME: vehicle_name,
+                                CONF_SOURCE_ENTITY: source_entity,
+                            }
+                        )
+
+                        # Update config entry
+                        new_data = {**self.config_entry.data}
+                        new_data[CONF_TRACKED_VEHICLES] = self._vehicles
+
+                        self.hass.config_entries.async_update_entry(
+                            self.config_entry,
+                            data=new_data,
+                        )
+
+                        # Reload integration
+                        await self.hass.config_entries.async_reload(
+                            self.config_entry.entry_id
+                        )
+
+                        return self.async_create_entry(
+                            title="", data=self.config_entry.options
+                        )
+
+        # Build list of device_tracker and sensor entities
+        entity_options = {}
+        for state in self.hass.states.async_all():
+            if state.domain in ("device_tracker", "sensor"):
+                # Check if it has location attributes
+                attrs = state.attributes
+                has_location = (
+                    "latitude" in attrs
+                    or "longitude" in attrs
+                    or any(
+                        attr in attrs
+                        for attr in ("street", "formatted_address", "address")
+                    )
+                )
+                if has_location:
+                    friendly_name = attrs.get("friendly_name", state.entity_id)
+                    entity_options[state.entity_id] = f"{friendly_name} ({state.entity_id})"
+
+        # Default vehicle name
+        default_name = f"Vehicle {len(self._vehicles) + 1}"
+
+        if entity_options:
+            data_schema = vol.Schema(
+                {
+                    vol.Required(CONF_VEHICLE_NAME, default=default_name): str,
+                    vol.Required(CONF_SOURCE_ENTITY): vol.In(entity_options),
+                }
+            )
+        else:
+            # No suitable entities found, show text input
+            data_schema = vol.Schema(
+                {
+                    vol.Required(CONF_VEHICLE_NAME, default=default_name): str,
+                    vol.Required(CONF_SOURCE_ENTITY): str,
+                }
+            )
+
+        return self.async_show_form(
+            step_id="add_vehicle",
+            data_schema=data_schema,
+            errors=errors,
+            description_placeholders={
+                "entity_count": str(len(entity_options)),
+            },
+        )
+
+    async def async_step_confirm_delete_vehicle(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Confirm deletion of a tracked vehicle."""
+        current_vehicles = list(
+            self.config_entry.data.get(CONF_TRACKED_VEHICLES, [])
+        )
+        index = self._delete_vehicle_index
+
+        if index >= len(current_vehicles):
+            return await self.async_step_manage_vehicles()
+
+        if user_input is not None:
+            if user_input.get("confirm"):
+                # Get the vehicle being deleted
+                vehicle_to_delete = current_vehicles[index]
+                source_entity = vehicle_to_delete.get(CONF_SOURCE_ENTITY, "")
+
+                # Remove entities and device from registries
+                from homeassistant.helpers import (
+                    device_registry as dr,
+                    entity_registry as er,
+                )
+
+                entity_reg = er.async_get(self.hass)
+                device_reg = dr.async_get(self.hass)
+
+                # Sanitize source entity ID for unique_id matching
+                sanitized_id = source_entity.replace(".", "_").replace("-", "_")
+
+                # Build unique IDs for vehicle entities
+                unique_ids_to_remove = [
+                    f"{DOMAIN}_vehicle_{sanitized_id}_parking_ban",
+                    f"{DOMAIN}_vehicle_{sanitized_id}_status",
+                    f"{DOMAIN}_vehicle_{sanitized_id}_next_operation",
+                ]
+
+                # Remove entities
+                entities_to_remove = [
+                    entity.entity_id
+                    for entity in entity_reg.entities.values()
+                    if entity.unique_id in unique_ids_to_remove
+                ]
+
+                for entity_id in entities_to_remove:
+                    entity_reg.async_remove(entity_id)
+
+                # Remove the associated device
+                device_identifier = (DOMAIN, f"vehicle_{sanitized_id}")
+                device = device_reg.async_get_device(identifiers={device_identifier})
+                if device:
+                    device_reg.async_remove_device(device.id)
+
+                # Remove vehicle from config
+                current_vehicles.pop(index)
+
+                # Update config entry
+                new_data = {**self.config_entry.data}
+                new_data[CONF_TRACKED_VEHICLES] = current_vehicles
+
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data=new_data,
+                )
+
+                # Reload integration
+                await self.hass.config_entries.async_reload(self.config_entry.entry_id)
+
+                return self.async_create_entry(title="", data=self.config_entry.options)
+
+            return await self.async_step_manage_vehicles()
+
+        vehicle = current_vehicles[index]
+        vehicle_name = vehicle.get(CONF_VEHICLE_NAME, f"Vehicle {index + 1}")
+
+        data_schema = vol.Schema(
+            {
+                vol.Required("confirm", default=False): bool,
+            }
+        )
+
+        return self.async_show_form(
+            step_id="confirm_delete_vehicle",
+            data_schema=data_schema,
+            description_placeholders={
+                "vehicle_name": vehicle_name,
             },
         )

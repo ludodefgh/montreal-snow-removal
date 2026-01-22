@@ -311,3 +311,34 @@ class SnowRemovalCoordinator(DataUpdateCoordinator):
             self.tracked_cote_rue_ids.discard(cote_rue_id)
             self._street_data.pop(cote_rue_id, None)
             _LOGGER.debug("Removed COTE_RUE_ID %d from tracking", cote_rue_id)
+
+    def on_vehicle_street_change(
+        self, old_cote_rue_id: int | None, new_cote_rue_id: int | None
+    ) -> None:
+        """Handle vehicle changing streets.
+
+        This is called by VehicleAddressResolver when a vehicle moves to
+        a different street.
+
+        Args:
+            old_cote_rue_id: Previous street ID (None if first resolution)
+            new_cote_rue_id: New street ID (None if outside coverage)
+        """
+        # Add new street to tracking
+        if new_cote_rue_id is not None:
+            self.add_tracked_street(new_cote_rue_id)
+
+        # Note: We don't remove old_cote_rue_id because:
+        # 1. Other vehicles might be using it
+        # 2. Static addresses might be tracking it
+        # The slight overhead of tracking extra streets is acceptable
+
+        _LOGGER.info(
+            "Vehicle street change: %s -> %s",
+            old_cote_rue_id,
+            new_cote_rue_id,
+        )
+
+        # Trigger an update to fetch data for the new street
+        if new_cote_rue_id is not None:
+            self.hass.async_create_task(self.async_request_refresh())

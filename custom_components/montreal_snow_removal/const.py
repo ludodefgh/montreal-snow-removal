@@ -90,6 +90,31 @@ CONF_NAME: Final = "name"
 CONF_COTE_RUE_ID: Final = "cote_rue_id"
 CONF_USE_PRODUCTION: Final = "use_production"
 
+# Vehicle Tracking Configuration
+CONF_TRACKED_VEHICLES: Final = "tracked_vehicles"
+CONF_VEHICLE_NAME: Final = "vehicle_name"
+CONF_SOURCE_ENTITY: Final = "source_entity"
+
+# Known address attributes from common integrations (in priority order)
+KNOWN_ADDRESS_ATTRIBUTES: Final = [
+    "street",  # Places integration
+    "formatted_address",  # OpenStreetMap
+    "address",  # Generic
+]
+
+# Vehicle states
+STATE_OUTSIDE_COVERAGE: Final = "outside_coverage"
+STATE_RESOLVING: Final = "resolving"
+STATE_SOURCE_UNAVAILABLE: Final = "source_unavailable"
+
+# Vehicle-specific attributes
+ATTR_CURRENT_STREET: Final = "current_street"
+ATTR_SOURCE_ENTITY: Final = "source_entity"
+ATTR_LAST_RESOLUTION: Final = "last_resolution"
+ATTR_RESOLUTION_METHOD: Final = "resolution_method"
+ATTR_SOURCE_AVAILABLE: Final = "source_available"
+ATTR_STREET_SIDE: Final = "street_side"
+
 # Platforms
 PLATFORMS: Final = ["sensor", "binary_sensor", "device_tracker"]
 

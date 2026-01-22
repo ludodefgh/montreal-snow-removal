@@ -18,12 +18,16 @@ from .api.public_api import PublicAPIClient
 from .const import (
     CONF_ADDRESSES,
     CONF_COTE_RUE_ID,
+    CONF_SOURCE_ENTITY,
+    CONF_TRACKED_VEHICLES,
+    CONF_VEHICLE_NAME,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from .coordinator import SnowRemovalCoordinator
 from .frontend import async_register_frontend
 from .http import async_register_http
+from .vehicle_resolver import VehicleAddressResolver
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,6 +97,33 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Fetch initial data
     await coordinator.async_config_entry_first_refresh()
 
+    # Initialize vehicle resolvers for tracked vehicles
+    tracked_vehicles = entry.data.get(CONF_TRACKED_VEHICLES, [])
+    vehicle_resolvers: dict[str, VehicleAddressResolver] = {}
+
+    for vehicle in tracked_vehicles:
+        vehicle_name = vehicle[CONF_VEHICLE_NAME]
+        source_entity = vehicle[CONF_SOURCE_ENTITY]
+
+        resolver = VehicleAddressResolver(
+            hass,
+            vehicle_name,
+            source_entity,
+            geobase,
+            geojson_handler,
+            on_street_change=coordinator.on_vehicle_street_change,
+        )
+        vehicle_resolvers[source_entity] = resolver
+        _LOGGER.info(
+            "Created resolver for vehicle %s (source: %s)",
+            vehicle_name,
+            source_entity,
+        )
+
+    # Start all vehicle resolvers
+    for resolver in vehicle_resolvers.values():
+        await resolver.async_start()
+
     # Store coordinator and session in hass.data
     hass.data.setdefault(DOMAIN, {})
     hass.data[DOMAIN][entry.entry_id] = {
@@ -101,6 +132,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "geobase": geobase,
         "geojson_handler": geojson_handler,
         "addresses": addresses,
+        "tracked_vehicles": tracked_vehicles,
+        "vehicle_resolvers": vehicle_resolvers,
         "session": session,  # Store session for cleanup
     }
 
@@ -134,6 +167,12 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Close aiohttp session and remove data
     if unload_ok:
         entry_data = hass.data[DOMAIN].pop(entry.entry_id)
+
+        # Stop vehicle resolvers
+        vehicle_resolvers = entry_data.get("vehicle_resolvers", {})
+        for resolver in vehicle_resolvers.values():
+            await resolver.async_stop()
+
         session = entry_data.get("session")
         if session:
             await session.close()

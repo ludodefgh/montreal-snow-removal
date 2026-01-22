@@ -17,6 +17,9 @@ from .const import (
     CONF_ADDRESSES,
     CONF_COTE_RUE_ID,
     CONF_NAME,
+    CONF_SOURCE_ENTITY,
+    CONF_TRACKED_VEHICLES,
+    CONF_VEHICLE_NAME,
     DOMAIN,
     ICON_PARKING_BAN,
     STATE_EN_COURS,
@@ -24,6 +27,7 @@ from .const import (
     STATE_REPLANIFIE,
 )
 from .coordinator import SnowRemovalCoordinator
+from .vehicle_entities import VehicleParkingBanSensor
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -50,6 +54,31 @@ async def async_setup_entry(
                 entry.entry_id,
             )
         )
+
+    # Create binary sensors for tracked vehicles
+    tracked_vehicles = hass.data[DOMAIN][entry.entry_id].get(CONF_TRACKED_VEHICLES, [])
+    vehicle_resolvers = hass.data[DOMAIN][entry.entry_id].get("vehicle_resolvers", {})
+
+    for vehicle in tracked_vehicles:
+        vehicle_name = vehicle[CONF_VEHICLE_NAME]
+        source_entity = vehicle[CONF_SOURCE_ENTITY]
+
+        resolver = vehicle_resolvers.get(source_entity)
+        if not resolver:
+            _LOGGER.warning(
+                "No resolver found for vehicle %s, skipping binary sensor creation",
+                vehicle_name,
+            )
+            continue
+
+        # Vehicle parking ban sensor
+        sensors.append(
+            VehicleParkingBanSensor(
+                coordinator, resolver, vehicle_name, source_entity, entry.entry_id
+            )
+        )
+
+        _LOGGER.debug("Created parking ban sensor for vehicle %s", vehicle_name)
 
     async_add_entities(sensors)
 

@@ -28,11 +28,16 @@ from .const import (
     DOMAIN,
     ICON_MAP,
     ICON_PARKING_BAN,
+    STATE_DEGAGE,
+    STATE_DENEIGE,
     STATE_EN_COURS,
+    STATE_ENNEIGE,
     STATE_OUTSIDE_COVERAGE,
     STATE_PLANIFIE,
     STATE_REPLANIFIE,
+    STATE_SERA_REPLANIFIE,
     STATE_SOURCE_UNAVAILABLE,
+    STATE_STATIONNEMENT_INTERDIT,
 )
 
 if TYPE_CHECKING:
@@ -113,6 +118,51 @@ class VehicleEntityMixin:
         if not dt:
             return None
         return dt.isoformat()
+
+    def _get_marker_color(self, state: str | None) -> str:
+        """Get marker color for map display based on state."""
+        color_map = {
+            STATE_STATIONNEMENT_INTERDIT: "red",
+            STATE_PLANIFIE: "orange",
+            STATE_REPLANIFIE: "orange",
+            STATE_SERA_REPLANIFIE: "yellow",
+            STATE_EN_COURS: "purple",
+            STATE_DENEIGE: "green",
+            STATE_DEGAGE: "gray",
+            STATE_ENNEIGE: "blue",
+        }
+        return color_map.get(state, "blue")
+
+    def _get_derived_state(self, street_data: dict[str, Any]) -> str:
+        """Get the derived state including parking ban logic."""
+        return self.coordinator.derive_state_with_parking_ban(
+            etat_code=street_data.get("etat_code", 0),
+            date_deb_planif=street_data.get("date_deb_planif"),
+            date_fin_planif=street_data.get("date_fin_planif"),
+            date_deb_replanif=street_data.get("date_deb_replanif"),
+            date_fin_replanif=street_data.get("date_fin_replanif"),
+        )
+
+    def _get_street_coordinates(self) -> list[list[float]] | None:
+        """Get street coordinates for map display."""
+        cote_rue_id = self._resolver.current_cote_rue_id
+        if cote_rue_id is None:
+            return None
+
+        geometry = self.coordinator.geojson_handler.get_geometry(cote_rue_id)
+        if not geometry:
+            return None
+
+        coordinates = geometry.get("coordinates", [])
+        if not coordinates:
+            return None
+
+        # Convert to list of [lat, lon] pairs (flip from GeoJSON [lon, lat])
+        return [
+            [coord[1], coord[0]]
+            for coord in coordinates
+            if len(coord) >= 2
+        ]
 
 
 class VehicleParkingBanSensor(VehicleEntityMixin, CoordinatorEntity, BinarySensorEntity):
@@ -288,15 +338,46 @@ class VehicleStatusSensor(VehicleEntityMixin, CoordinatorEntity, SensorEntity):
         if not street_data:
             return attributes
 
-        # Add planning dates
-        if street_data.get("date_deb_planif"):
-            attributes["date_debut_planif"] = self._format_datetime(
-                street_data["date_deb_planif"]
-            )
-        if street_data.get("date_fin_planif"):
-            attributes["date_fin_planif"] = self._format_datetime(
-                street_data["date_fin_planif"]
-            )
+        # Add street info for map display
+        street_name_parts = []
+        if street_data.get("type_voie"):
+            street_name_parts.append(street_data["type_voie"])
+        if street_data.get("nom_voie"):
+            street_name_parts.append(street_data["nom_voie"])
+        if street_name_parts:
+            attributes["street_name"] = " ".join(street_name_parts)
+
+        # Add derived state and marker color for map
+        derived_state = self._get_derived_state(street_data)
+        attributes["snow_removal_state"] = derived_state
+        attributes["marker_color"] = self._get_marker_color(derived_state)
+
+        # Add street coordinates for map display
+        street_coordinates = self._get_street_coordinates()
+        if street_coordinates:
+            attributes["street_coordinates"] = street_coordinates
+            attributes["coordinate_count"] = len(street_coordinates)
+
+        # Add planning dates with start_time/end_time format for map popup
+        if street_data.get("state") == STATE_REPLANIFIE:
+            date_deb = street_data.get("date_deb_replanif")
+            date_fin = street_data.get("date_fin_replanif")
+            if not date_deb:
+                date_deb = street_data.get("date_deb_planif")
+            if not date_fin:
+                date_fin = street_data.get("date_fin_planif")
+        else:
+            date_deb = street_data.get("date_deb_planif")
+            date_fin = street_data.get("date_fin_planif")
+
+        if date_deb:
+            attributes["start_time"] = self._format_datetime(date_deb)
+            attributes["date_debut_planif"] = attributes["start_time"]
+        if date_fin:
+            attributes["end_time"] = self._format_datetime(date_fin)
+            attributes["date_fin_planif"] = attributes["end_time"]
+
+        # Keep replanif dates if different
         if street_data.get("date_deb_replanif"):
             attributes["date_debut_replanif"] = self._format_datetime(
                 street_data["date_deb_replanif"]

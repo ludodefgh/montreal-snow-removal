@@ -27,6 +27,8 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
     this._map = null;
     this._trackedLayers = new Map(); // Layers for tracked streets
     this._neighborhoodLayers = new Map(); // Layers for neighborhood streets
+    this._vehicleLayers = new Map(); // Layers for vehicle streets
+    this._vehicleMarkers = new Map(); // Markers for vehicle locations
     this._hasAutoFitted = false;
     this._currentZoom = 15;
     this._loadingNeighborhood = false;
@@ -45,10 +47,12 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         loading_in_progress: 'Chargement en cours',
         no_operation: 'Aucune opération',
         tracked_street: 'Rue suivie',
+        tracked_vehicle: 'Véhicule suivi',
         side: 'Côté',
         status: 'État',
         start: 'Début',
         end: 'Fin',
+        vehicle: 'Véhicule',
       },
       en: {
         legend: 'Legend',
@@ -60,10 +64,12 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
         loading_in_progress: 'Loading in progress',
         no_operation: 'No operation',
         tracked_street: 'Tracked street',
+        tracked_vehicle: 'Tracked vehicle',
         side: 'Side',
         status: 'Status',
         start: 'Start',
         end: 'End',
+        vehicle: 'Vehicle',
       },
     };
   }
@@ -81,12 +87,16 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
   }
 
   setConfig(config) {
-    if (!config.entities || !Array.isArray(config.entities)) {
-      throw new Error('You need to define entities');
+    // Allow either entities or vehicles to be defined (or both)
+    const hasEntities = config.entities && Array.isArray(config.entities) && config.entities.length > 0;
+    const hasVehicles = config.vehicles && Array.isArray(config.vehicles) && config.vehicles.length > 0;
+    if (!hasEntities && !hasVehicles) {
+      throw new Error('You need to define entities or vehicles');
     }
     this._config = {
       title: config.title || 'Montreal Snow Removal',
-      entities: config.entities,
+      entities: config.entities || [],
+      vehicles: config.vehicles || [], // Vehicle sensor entities
       zoom: config.zoom || 15,
       center: config.center || null,
       dark_mode: config.dark_mode !== false,
@@ -96,6 +106,9 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       zoom_threshold: config.zoom_threshold || 14, // Zoom level to show all streets
       max_neighborhood_streets: config.max_neighborhood_streets || 100, // Max streets to load
       debug_center: config.debug_center || false, // Show center marker for debugging
+      // Vehicle options
+      show_vehicle_markers: config.show_vehicle_markers !== false, // Show car icons at GPS location
+      show_vehicle_streets: config.show_vehicle_streets !== false, // Show vehicle's current street as favorite
     };
   }
 
@@ -107,11 +120,13 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       this._initMap().then(() => {
         this._initializing = false;
         this._updateTrackedStreets();
+        this._updateVehicles();
         this._updateNeighborhoodStreets();
       });
     } else if (this._map) {
-      // Update tracked streets when their state changes
+      // Update tracked streets and vehicles when their state changes
       this._updateTrackedStreets();
+      this._updateVehicles();
     }
   }
 
@@ -304,6 +319,10 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
               <span style="font-weight: bold;">★</span>
               <span style="margin-left: 4px;">${this._t('tracked_street')}</span>
             </div>
+            <div class="legend-item">
+              <span style="font-size: 16px;">🚗</span>
+              <span style="margin-left: 4px;">${this._t('tracked_vehicle')}</span>
+            </div>
           </div>
         </div>
       </ha-card>
@@ -433,6 +452,152 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       this._map.fitBounds(bounds, { padding: [50, 50] });
       this._hasAutoFitted = true;
     }
+  }
+
+  _updateVehicles() {
+    if (!this._map || !this._hass) {
+      return;
+    }
+
+    const vehicles = this._config.vehicles || [];
+    const bounds = [];
+
+    vehicles.forEach(entityId => {
+      const entity = this._hass.states[entityId];
+      if (!entity) {
+        console.warn(`Vehicle entity not found: ${entityId}`);
+        return;
+      }
+
+      const attributes = entity.attributes;
+
+      // Get vehicle GPS location from source entity
+      if (this._config.show_vehicle_markers) {
+        const sourceEntityId = attributes.source_entity;
+        if (sourceEntityId) {
+          const sourceEntity = this._hass.states[sourceEntityId];
+          if (sourceEntity) {
+            const lat = sourceEntity.attributes.latitude;
+            const lng = sourceEntity.attributes.longitude;
+            if (lat && lng) {
+              this._updateVehicleMarker(entityId, lat, lng, attributes);
+            }
+          }
+        }
+      }
+
+      // Draw vehicle's current street as favorite
+      if (this._config.show_vehicle_streets) {
+        const coordinates = attributes.street_coordinates;
+        if (coordinates && coordinates.length > 0) {
+          const color = this._getColorForState(attributes.marker_color || attributes.snow_removal_state);
+
+          // Remove existing layer
+          if (this._vehicleLayers.has(entityId)) {
+            this._map.removeLayer(this._vehicleLayers.get(entityId));
+          }
+
+          // Create thicker polyline for vehicle streets (same as tracked)
+          const polyline = L.polyline(coordinates, {
+            color: color,
+            weight: 7,
+            opacity: 0.9,
+          });
+
+          const popupContent = this._createVehiclePopupContent(attributes);
+          polyline.bindPopup(popupContent);
+
+          polyline.addTo(this._map);
+          this._vehicleLayers.set(entityId, polyline);
+
+          coordinates.forEach(coord => bounds.push(coord));
+        }
+      }
+    });
+
+    // Include vehicle bounds in auto-fit (only on first load)
+    if (bounds.length > 0 && !this._config.center && !this._hasAutoFitted) {
+      // Combine with tracked street bounds
+      const allBounds = [...bounds];
+      this._trackedLayers.forEach(layer => {
+        layer.getLatLngs().forEach(coord => allBounds.push([coord.lat, coord.lng]));
+      });
+      if (allBounds.length > 0) {
+        this._map.fitBounds(allBounds, { padding: [50, 50] });
+        this._hasAutoFitted = true;
+      }
+    }
+  }
+
+  _updateVehicleMarker(entityId, lat, lng, attributes) {
+    // Remove existing marker
+    if (this._vehicleMarkers.has(entityId)) {
+      this._map.removeLayer(this._vehicleMarkers.get(entityId));
+    }
+
+    // Determine marker color based on parking ban status
+    const state = attributes.snow_removal_state;
+    const markerColor = this._getColorForState(attributes.marker_color || state);
+
+    // Create car icon
+    const carIcon = L.divIcon({
+      className: 'vehicle-marker',
+      html: `<div style="
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        filter: drop-shadow(2px 2px 2px rgba(0,0,0,0.5));
+      ">🚗</div>`,
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
+    });
+
+    // Create marker
+    const marker = L.marker([lat, lng], {
+      icon: carIcon,
+      zIndexOffset: 1000, // Above street lines
+    });
+
+    // Create popup content
+    const vehicleName = attributes.current_street || this._t('vehicle');
+    let popupContent = `<strong>🚗 ${vehicleName}</strong>`;
+    if (attributes.street_side) {
+      popupContent += `<br>${this._t('side')}: ${attributes.street_side}`;
+    }
+    if (state) {
+      popupContent += `<br>${this._t('status')}: ${this._formatState(state)}`;
+    }
+
+    marker.bindPopup(popupContent);
+    marker.addTo(this._map);
+    this._vehicleMarkers.set(entityId, marker);
+  }
+
+  _createVehiclePopupContent(attributes) {
+    const streetName = attributes.street_name || attributes.current_street || 'Unknown';
+    const streetSide = attributes.street_side || '';
+    const state = attributes.snow_removal_state || 'unknown';
+    const startTime = attributes.start_time || '';
+    const endTime = attributes.end_time || '';
+
+    let content = `<strong>${streetName}</strong>`;
+    content += ` <span style="font-size: 16px;">🚗</span>`;
+
+    if (streetSide) {
+      content += `<br>${this._t('side')}: ${streetSide}`;
+    }
+    content += `<br>${this._t('status')}: ${this._formatState(state)}`;
+    if (startTime) {
+      content += `<br>${this._t('start')}: ${this._formatDateTime(startTime)}`;
+    }
+    if (endTime) {
+      content += `<br>${this._t('end')}: ${this._formatDateTime(endTime)}`;
+    }
+
+    return content;
   }
 
   async _updateNeighborhoodStreets() {
@@ -569,8 +734,16 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
   }
 
   _isTrackedStreet(coteRueId) {
-    // Check if this cote_rue_id belongs to any tracked entity
-    return this._config.entities.some(entityId => {
+    // Check if this cote_rue_id belongs to any tracked entity (static address)
+    const isStaticTracked = this._config.entities.some(entityId => {
+      const entity = this._hass.states[entityId];
+      return entity && entity.attributes.cote_rue_id === coteRueId;
+    });
+    if (isStaticTracked) return true;
+
+    // Check if this cote_rue_id belongs to any tracked vehicle
+    const vehicles = this._config.vehicles || [];
+    return vehicles.some(entityId => {
       const entity = this._hass.states[entityId];
       return entity && entity.attributes.cote_rue_id === coteRueId;
     });
@@ -811,6 +984,7 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
   static getStubConfig() {
     return {
       entities: [],
+      vehicles: [],
       title: 'Déneigement Montréal',
       zoom: 15,
       height: 600,
@@ -819,6 +993,8 @@ class MontrealSnowRemovalMapCard extends HTMLElement {
       zoom_threshold: 14,
       max_neighborhood_streets: 100,
       debug_center: false,
+      show_vehicle_markers: true,
+      show_vehicle_streets: true,
     };
   }
 }
@@ -831,6 +1007,7 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
     this._config = {};
     this._hass = null;
     this._availableEntities = [];
+    this._availableVehicleEntities = [];
     this._ignoreNextSetConfig = false;
   }
 
@@ -852,13 +1029,23 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
   _updateAvailableEntities() {
     if (!this._hass) return;
 
-    // Get all device_tracker entities from Montreal Snow Removal
+    // Get all device_tracker entities from Montreal Snow Removal (static addresses)
     this._availableEntities = Object.keys(this._hass.states)
       .filter(entityId => {
         if (!entityId.startsWith('device_tracker.')) return false;
         const state = this._hass.states[entityId];
         // Check if it has street_coordinates attribute (Montreal Snow Removal map entity)
         return state.attributes && state.attributes.street_coordinates;
+      })
+      .sort();
+
+    // Get all vehicle sensor entities from Montreal Snow Removal
+    this._availableVehicleEntities = Object.keys(this._hass.states)
+      .filter(entityId => {
+        if (!entityId.startsWith('sensor.')) return false;
+        const state = this._hass.states[entityId];
+        // Check if it has source_entity attribute (Montreal Snow Removal vehicle entity)
+        return state.attributes && state.attributes.source_entity && state.attributes.cote_rue_id !== undefined;
       })
       .sort();
   }
@@ -1027,7 +1214,7 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
           />
         </div>
 
-        <div class="section-title">Entités (requis)</div>
+        <div class="section-title">Adresses statiques</div>
         <div class="entity-list" id="entity-list">
           ${(this._config.entities || []).map((entity, index) => `
             <div class="entity-item" data-index="${index}">
@@ -1046,8 +1233,48 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
             </div>
           `).join('')}
         </div>
-        <button class="add-entity-btn">+ Ajouter une entité</button>
-        <div class="help-text">Ajoutez les entités device_tracker à suivre sur la carte (tapez pour voir les suggestions)</div>
+        <button class="add-entity-btn" id="add-entity-btn">+ Ajouter une adresse</button>
+        <div class="help-text">Adresses configurées manuellement (device_tracker)</div>
+
+        <div class="section-title">Véhicules 🚗</div>
+        <div class="entity-list" id="vehicle-list">
+          ${(this._config.vehicles || []).map((vehicle, index) => `
+            <div class="entity-item vehicle-item" data-index="${index}">
+              <div class="entity-input-wrapper">
+                <input
+                  type="text"
+                  class="vehicle-input"
+                  data-index="${index}"
+                  value="${vehicle}"
+                  placeholder="sensor.snow_removal_vehicle_..."
+                  autocomplete="off"
+                />
+                <div class="autocomplete-list vehicle-autocomplete" data-index="${index}"></div>
+              </div>
+              <button class="remove-vehicle-btn" data-index="${index}">✕</button>
+            </div>
+          `).join('')}
+        </div>
+        <button class="add-entity-btn" id="add-vehicle-btn">+ Ajouter un véhicule</button>
+        <div class="help-text">Véhicules suivis par GPS (capteurs avec source_entity)</div>
+
+        <div class="option">
+          <label for="show_vehicle_markers">Afficher icône véhicule sur carte</label>
+          <input
+            type="checkbox"
+            id="show_vehicle_markers"
+            ${this._config.show_vehicle_markers !== false ? 'checked' : ''}
+          />
+        </div>
+
+        <div class="option">
+          <label for="show_vehicle_streets">Afficher rue du véhicule en favori</label>
+          <input
+            type="checkbox"
+            id="show_vehicle_streets"
+            ${this._config.show_vehicle_streets !== false ? 'checked' : ''}
+          />
+        </div>
 
         <div class="section-title">Centre et Zoom</div>
 
@@ -1131,7 +1358,7 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
     `;
 
     // Add event listeners after rendering
-    this.shadowRoot.querySelectorAll('input:not(.entity-item input)').forEach(element => {
+    this.shadowRoot.querySelectorAll('input:not(.entity-input):not(.vehicle-input)').forEach(element => {
       if (element.id === 'center') {
         element.addEventListener('blur', this._centerChanged.bind(this));
         element.addEventListener('keydown', (e) => {
@@ -1156,60 +1383,103 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
 
     // Entity input listeners with autocomplete
     this.shadowRoot.querySelectorAll('.entity-input').forEach(element => {
-      element.addEventListener('input', (e) => this._onEntityInput(e));
-      element.addEventListener('focus', (e) => this._onEntityFocus(e));
+      element.addEventListener('input', (e) => this._onEntityInput(e, 'entity'));
+      element.addEventListener('focus', (e) => this._onEntityFocus(e, 'entity'));
       element.addEventListener('blur', (e) => {
         // Delay to allow click on autocomplete item
-        setTimeout(() => this._hideAutocomplete(e.target), 200);
+        setTimeout(() => this._hideAutocomplete(e.target, 'entity'), 200);
         this._entityChanged(e);
       });
       element.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-          this._hideAutocomplete(e.target);
+          this._hideAutocomplete(e.target, 'entity');
           this._entityChanged(e);
         } else if (e.key === 'Escape') {
-          this._hideAutocomplete(e.target);
+          this._hideAutocomplete(e.target, 'entity');
         } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
-          this._navigateAutocomplete(e.target, e.key === 'ArrowDown' ? 1 : -1);
+          this._navigateAutocomplete(e.target, e.key === 'ArrowDown' ? 1 : -1, 'entity');
+        }
+      });
+    });
+
+    // Vehicle input listeners with autocomplete
+    this.shadowRoot.querySelectorAll('.vehicle-input').forEach(element => {
+      element.addEventListener('input', (e) => this._onEntityInput(e, 'vehicle'));
+      element.addEventListener('focus', (e) => this._onEntityFocus(e, 'vehicle'));
+      element.addEventListener('blur', (e) => {
+        // Delay to allow click on autocomplete item
+        setTimeout(() => this._hideAutocomplete(e.target, 'vehicle'), 200);
+        this._vehicleChanged(e);
+      });
+      element.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          this._hideAutocomplete(e.target, 'vehicle');
+          this._vehicleChanged(e);
+        } else if (e.key === 'Escape') {
+          this._hideAutocomplete(e.target, 'vehicle');
+        } else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          this._navigateAutocomplete(e.target, e.key === 'ArrowDown' ? 1 : -1, 'vehicle');
         }
       });
     });
 
     // Add entity button
-    this.shadowRoot.querySelector('.add-entity-btn')?.addEventListener('click', this._addEntity.bind(this));
+    this.shadowRoot.querySelector('#add-entity-btn')?.addEventListener('click', this._addEntity.bind(this));
 
-    // Remove entity buttons
-    this.shadowRoot.querySelectorAll('.entity-item button').forEach(btn => {
+    // Add vehicle button
+    this.shadowRoot.querySelector('#add-vehicle-btn')?.addEventListener('click', this._addVehicle.bind(this));
+
+    // Remove entity buttons (not vehicle buttons)
+    this.shadowRoot.querySelectorAll('.entity-item:not(.vehicle-item) button').forEach(btn => {
       btn.addEventListener('click', (e) => {
         const index = parseInt(e.target.dataset.index);
         this._removeEntity(index);
       });
     });
+
+    // Remove vehicle buttons
+    this.shadowRoot.querySelectorAll('.remove-vehicle-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const index = parseInt(e.target.dataset.index);
+        this._removeVehicle(index);
+      });
+    });
   }
 
-  _onEntityInput(ev) {
+  _onEntityInput(ev, type = 'entity') {
     const input = ev.target;
     const value = input.value.toLowerCase();
-    this._showAutocomplete(input, value);
+    this._showAutocomplete(input, value, type);
   }
 
-  _onEntityFocus(ev) {
+  _onEntityFocus(ev, type = 'entity') {
     const input = ev.target;
     const value = input.value.toLowerCase();
-    this._showAutocomplete(input, value);
+    this._showAutocomplete(input, value, type);
   }
 
-  _showAutocomplete(input, filter) {
+  _showAutocomplete(input, filter, type = 'entity') {
     const index = input.dataset.index;
-    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    const listSelector = type === 'vehicle'
+      ? `.vehicle-autocomplete[data-index="${index}"]`
+      : `.autocomplete-list:not(.vehicle-autocomplete)[data-index="${index}"]`;
+    const listEl = this.shadowRoot.querySelector(listSelector);
     if (!listEl) return;
 
-    // Filter available entities
-    const currentEntities = this._config.entities || [];
-    const filtered = this._availableEntities.filter(entityId => {
-      // Don't show already selected entities (except current one)
-      if (currentEntities.includes(entityId) && currentEntities[index] !== entityId) {
+    // Get the appropriate lists based on type
+    const currentItems = type === 'vehicle'
+      ? (this._config.vehicles || [])
+      : (this._config.entities || []);
+    const availableItems = type === 'vehicle'
+      ? this._availableVehicleEntities
+      : this._availableEntities;
+
+    // Filter available items
+    const filtered = availableItems.filter(entityId => {
+      // Don't show already selected items (except current one)
+      if (currentItems.includes(entityId) && currentItems[index] !== entityId) {
         return false;
       }
       // Filter by search term
@@ -1241,30 +1511,37 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
     }).join('');
 
     // Add click handlers
+    const changeHandler = type === 'vehicle' ? this._vehicleChanged : this._entityChanged;
     listEl.querySelectorAll('.autocomplete-item').forEach(item => {
       item.addEventListener('mousedown', (e) => {
         e.preventDefault();
         const entityId = item.dataset.entity;
         input.value = entityId;
-        this._hideAutocomplete(input);
-        this._entityChanged({ target: input });
+        this._hideAutocomplete(input, type);
+        changeHandler.call(this, { target: input });
       });
     });
 
     listEl.classList.add('show');
   }
 
-  _hideAutocomplete(input) {
+  _hideAutocomplete(input, type = 'entity') {
     const index = input.dataset.index;
-    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    const listSelector = type === 'vehicle'
+      ? `.vehicle-autocomplete[data-index="${index}"]`
+      : `.autocomplete-list:not(.vehicle-autocomplete)[data-index="${index}"]`;
+    const listEl = this.shadowRoot.querySelector(listSelector);
     if (listEl) {
       listEl.classList.remove('show');
     }
   }
 
-  _navigateAutocomplete(input, direction) {
+  _navigateAutocomplete(input, direction, type = 'entity') {
     const index = input.dataset.index;
-    const listEl = this.shadowRoot.querySelector(`.autocomplete-list[data-index="${index}"]`);
+    const listSelector = type === 'vehicle'
+      ? `.vehicle-autocomplete[data-index="${index}"]`
+      : `.autocomplete-list:not(.vehicle-autocomplete)[data-index="${index}"]`;
+    const listEl = this.shadowRoot.querySelector(listSelector);
     if (!listEl || !listEl.classList.contains('show')) return;
 
     const items = listEl.querySelectorAll('.autocomplete-item');
@@ -1372,6 +1649,38 @@ class MontrealSnowRemovalMapCardEditor extends HTMLElement {
     this._render();
   }
 
+  _vehicleChanged(ev) {
+    const index = parseInt(ev.target.dataset.index);
+    const vehicles = [...(this._config.vehicles || [])];
+    vehicles[index] = ev.target.value;
+    this._config = {
+      ...this._config,
+      vehicles,
+    };
+    this._fireEvent();
+  }
+
+  _addVehicle() {
+    const vehicles = [...(this._config.vehicles || []), ''];
+    this._config = {
+      ...this._config,
+      vehicles,
+    };
+    this._fireEvent();
+    this._render();
+  }
+
+  _removeVehicle(index) {
+    const vehicles = [...(this._config.vehicles || [])];
+    vehicles.splice(index, 1);
+    this._config = {
+      ...this._config,
+      vehicles,
+    };
+    this._fireEvent();
+    this._render();
+  }
+
   _fireEvent() {
     // Tell setConfig to skip the next render (it's our own update)
     this._ignoreNextSetConfig = true;
@@ -1396,7 +1705,7 @@ window.customCards.push({
 });
 
 console.info(
-  '%c MONTREAL-SNOW-REMOVAL-MAP-CARD %c v2.0.0 ',
+  '%c MONTREAL-SNOW-REMOVAL-MAP-CARD %c v2.1.0 ',
   'color: white; background: #0066CC; font-weight: 700;',
   'color: #0066CC; background: white; font-weight: 700;'
 );

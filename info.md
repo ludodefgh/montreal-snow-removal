@@ -9,6 +9,7 @@ Track snow removal operations in Montreal using real-time data from the city's P
 - **Parking ban alerts** - Get notified when parking is banned
 - **Visual map display** - See your streets on a map with color-coded status
 - **Custom map card included** - Display complete street segments as colored lines (auto-installed!)
+- **Vehicle tracking** 🚗 - Track your car's GPS location and see parking status on the map
 - **Multiple addresses** - Track home, work, or any location in Montreal
 - **Bilingual** - Full support for French and English
 
@@ -29,7 +30,11 @@ Then add the card to your dashboard:
 type: custom:montreal-snow-removal-map-card
 entities:
   - device_tracker.map_home
+vehicles:
+  - sensor.snow_removal_my_car
 ```
+
+The map card supports both static addresses and tracked vehicles with GPS markers 🚗.
 
 Data updates every ~20 minutes from the city's public API.
 

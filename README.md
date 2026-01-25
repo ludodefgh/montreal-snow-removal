@@ -247,9 +247,18 @@ title: Déneigement Montréal
 entities:
   - device_tracker.map_home
   - device_tracker.map_work
+vehicles:
+  - sensor.snow_removal_my_car
 zoom: 15
 dark_mode: true
+show_vehicle_markers: true
+show_vehicle_streets: true
 ```
+
+**Vehicle tracking on the map:**
+- 🚗 **Car icon** - Shows your vehicle's current GPS position
+- **Street highlighting** - Vehicle's current street displayed as a favorite (thick line)
+- Configurable via `show_vehicle_markers` and `show_vehicle_streets` options
 
 ### How It Works
 
@@ -422,7 +431,16 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.3.0 (Current) 🚗
+### Version 2.3.1 (Current) 🚗🗺️
+
+**Map Card: Vehicle Support**
+- ✨ **Vehicle markers on map** - 🚗 icons show vehicle GPS position in real-time
+- ✨ **Vehicle street highlighting** - Current street displayed as favorite (thick line with color-coded status)
+- ✨ **New config options** - `vehicles`, `show_vehicle_markers`, `show_vehicle_streets`
+- ✨ **Visual editor support** - Add vehicles via the card's configuration UI with autocomplete
+- ✨ **Legend updated** - Shows tracked vehicle icon in the legend
+
+### Version 2.3.0 🚗
 
 **New Feature: Vehicle Tracking**
 - ✨ **Dynamic vehicle tracking** - Track your car using GPS-based device_tracker or sensor entities

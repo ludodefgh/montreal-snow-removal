@@ -1,7 +1,7 @@
 {
   "name": "Montréal Snow Removal",
   "content_in_root": false,
-  "filename": "montreal_snow_removal",
+  "country": ["CA"],
   "render_readme": true,
   "homeassistant": "2024.1.0"
 }

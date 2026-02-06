@@ -30,7 +30,16 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
         return
 
     # Get the resources collection
-    resources = lovelace_data.get("resources")
+    # In newer Home Assistant versions, lovelace_data is a LovelaceData object
+    # with a resources attribute, not a dictionary
+    if hasattr(lovelace_data, "resources"):
+        resources = lovelace_data.resources
+    elif hasattr(lovelace_data, "get"):
+        resources = lovelace_data.get("resources")
+    else:
+        _LOGGER.debug("Unable to access Lovelace resources")
+        return
+
     if not isinstance(resources, ResourceStorageCollection):
         _LOGGER.debug(
             "Lovelace resources not using storage mode (YAML mode), "

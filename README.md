@@ -1,7 +1,9 @@
 # Montréal Snow Removal (Planif-Neige) - Home Assistant Integration
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/custom-components/hacs)
+[![hacs_badge](https://img.shields.io/badge/HACS-Default-41BDF5.svg)](https://github.com/hacs/integration)
 [![GitHub release](https://img.shields.io/github/release/ludodefgh/montreal-snow-removal.svg)](https://github.com/ludodefgh/montreal-snow-removal/releases)
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ludodefgh&repository=montreal-snow-removal&category=integration)
 
 A custom Home Assistant integration that tracks snow removal operations in Montreal streets using the official Planif-Neige API from Ville de Montréal.
 
@@ -20,15 +22,12 @@ A custom Home Assistant integration that tracks snow removal operations in Montr
 
 ### HACS (Recommended)
 
-1. Open HACS in Home Assistant
-2. Click on "Integrations"
-3. Click the three dots in the top right corner
-4. Select "Custom repositories"
-5. Add this repository URL: `https://github.com/ludodefgh/montreal-snow-removal`
-6. Select category: "Integration"
-7. Click "Add"
-8. Find "Montréal Snow Removal" in HACS and click "Install"
-9. Restart Home Assistant
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=ludodefgh&repository=montreal-snow-removal&category=integration)
+
+1. Click the button above, or open HACS in Home Assistant
+2. Search for "**Montréal Snow Removal**"
+3. Click "**Download**"
+4. Restart Home Assistant
 
 ### Manual Installation
 
@@ -378,31 +377,18 @@ The Planif-Neige API has a strict limit:
 
 This integration respects this limit. Don't set update intervals below 5 minutes.
 
-### Security
-
-- Never commit your API token to version control
-- Store your token securely in Home Assistant's configuration
-- Use Home Assistant secrets if needed
-
 ## Troubleshooting
 
 ### Integration not loading
 
 1. Check Home Assistant logs: **Settings** → **System** → **Logs**
 2. Look for errors related to `montreal_snow_removal`
-3. Verify your API token is valid
 
 ### No data showing
 
-1. Ensure your `COTE_RUE_ID` is correct
-2. Check if there's active snow removal in Montreal
+1. Ensure your address was found correctly during setup
+2. Check if there's active snow removal in Montreal (usually November-March)
 3. Verify the geobase cache was downloaded successfully
-
-### Authentication errors
-
-1. Verify your API token with the City of Montreal
-2. Try switching between Production and Test APIs
-3. Request a new token if needed
 
 ## Data Sources
 
@@ -431,7 +417,17 @@ Contributions are welcome! Please:
 
 ## Changelog
 
-### Version 2.3.1 (Current) 🚗🗺️
+### Version 2.3.4 (Current)
+
+**Bug Fixes:**
+- 🐛 Fixed compatibility with recent Home Assistant versions where `LovelaceData` API changed
+
+### Version 2.3.3
+
+**Improvements:**
+- ✨ Integration now available in HACS default repository (no manual repo addition needed!)
+
+### Version 2.3.1 🚗🗺️
 
 **Map Card: Vehicle Support**
 - ✨ **Vehicle markers on map** - 🚗 icons show vehicle GPS position in real-time
